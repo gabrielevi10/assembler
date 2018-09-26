@@ -5,6 +5,8 @@
 #include <string>
 #include <map>
 
+#include "Instruction.hpp"
+
 using namespace std;
 
 // Split de string a partir de um caractere
@@ -76,24 +78,35 @@ int get_correspondant_equ(string line, map<string, int> &map) {
     return map[label];
 }
 
+// Passagem zero do montador
 int passage_zero(string program_name) {
+    // Conta as linhas originais
+    int original_line_counter = 1;
+    // Conta as linhas do arquivo pre-processado
+    int pre_line_counter = 1;
     string line;
     ifstream myfile (program_name + ".asm");    
     ofstream pre_processed;
     // Map contendo os rótulos dos equs e seus respectivos valores
     map<string, int> equ_map;
+    // Relação das linhas do fonte original com o pre processado
+    map<int,int> lines_relations;
 
     if (myfile.is_open()) {
         // Abre o arquivo de pre-processamento
         pre_processed.open(program_name + ".pre");
-        while (getline (myfile,line)) {
+        while (getline (myfile,line)) {            
             // Formata a linha
             string clear_line = format_line(line);
 
             // Se ela for do tipo equate adiciona ao mapa
             if (clear_line.find("equ") != string::npos) {
                 add_to_equ_map(clear_line,equ_map);
-                pre_processed << clear_line << endl;
+                
+                // Copia a linha formatada para o arquivo novo
+                pre_processed << pre_line_counter << ' ' << original_line_counter << ' ' << clear_line << endl;
+                pre_line_counter++;
+                lines_relations[pre_line_counter] = original_line_counter;
             }
             // Se for do tipo 'if', veja o valor do equate 
             else if (clear_line.find("if") != string::npos) {
@@ -103,21 +116,48 @@ int passage_zero(string program_name) {
                 }
             }
             else {
-                // Para as outras instruções só copiar a linha formatada
-                pre_processed << clear_line << endl;
+                // Para as outras instruções só copiar a linha formatada para o arquivo novo
+                pre_processed << pre_line_counter << ' ' << original_line_counter << ' ' << clear_line << endl;
+                pre_line_counter++;        
+                lines_relations[pre_line_counter] = original_line_counter;
             }
+            original_line_counter++;
         }
         myfile.close();
         pre_processed.close();
 
+        return 0;
     }
 
     else {
         cout << "Arquivo \'" << program_name + ".asm\'" << " não existe em memória\n"; 
+        return -1;
     }
 }
 
-int main(int argc, char const *argv[]) {    
+// Carrega as instruções do assembly para memória(mapa)
+void load_instructions(map<string, Instruction> &map){
+    // São passados os tamanhos dos operandos, 
+    // os opcodes e o tamnho da instrução
+    map["add"]    = Instruction(1, 1, 2);
+    map["sub"]    = Instruction(1, 2, 2);
+    map["mult"]   = Instruction(1, 3, 2);
+    map["div"]    = Instruction(1, 4, 2);
+    map["jmp"]    = Instruction(1, 5, 2);
+    map["jmpn"]   = Instruction(1, 6, 2);
+    map["jmpp"]   = Instruction(1, 7, 2);
+    map["jmpz"]   = Instruction(1, 8, 2);
+    map["copy"]   = Instruction(2, 9, 3);
+    map["load"]   = Instruction(1, 10, 2);
+    map["store"]  = Instruction(1, 11, 2);
+    map["input"]  = Instruction(1, 12, 2);
+    map["output"] = Instruction(1, 13, 2);
+    map["stop"]   = Instruction(0, 14, 1);
+}
+
+int main(int argc, char const *argv[]) {
+    // Contém as instruções do assembly
+    map<string, Instruction> instructions_map;
     if(argc != 2) {
         cout << "Não foi passado o argumento do nome do arquivo\n";
         cout << "Encerrando execução\n";
@@ -125,6 +165,7 @@ int main(int argc, char const *argv[]) {
     }
     else {
         passage_zero(argv[1]);
+        //load_instructions(instructions_map);        
     }    
 
     return 0;

@@ -5,12 +5,9 @@
 
 class Instruction {
     public:
-        Instruction(std::string, int, int, int);
+        Instruction(int, int, int);
+        Instruction();
         ~Instruction();
-
-        std::string getMnemonic() {
-            return mnemonic;
-        }
         
         int getOperand() {
             return operand;
@@ -24,8 +21,7 @@ class Instruction {
             return lenght;
         }
 
-    private:
-        std::string mnemonic;
+    private:        
         int operand, opcode, lenght;  
 
 };
