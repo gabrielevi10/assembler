@@ -3,9 +3,9 @@
 
 class Directive {
     public:
-        Directives(int, int);
-        Directives();
-        ~Directives();
+        Directive(int, int);
+        Directive();
+        ~Directive();
 
         int getOperands() {
             return operands;

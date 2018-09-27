@@ -1,10 +1,10 @@
-#include "Directives.hpp"
+#include "Directive.hpp"
 
-Directives::Directives(int operands, int lenght) {
+Directive::Directive(int operands, int lenght) {
     this->operands = operands;
     this->lenght = lenght;
 }
 
-Directives::Directives() {}
+Directive::Directive() {}
 
-Directives::~Directives() {}
+Directive::~Directive() {}
