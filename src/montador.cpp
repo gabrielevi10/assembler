@@ -6,6 +6,7 @@
 #include <map>
 
 #include "Instruction.hpp"
+#include "Directive.hpp"
 
 using namespace std;
 
@@ -27,7 +28,7 @@ const vector<string> split(const string& s, const char& c) {
 // Deixa a linha o mais simples possível para leitura
 string format_line(string line) {
     // Retira os comentários
-    line = line.substr(0,line.find(';'));
+    line = line.substr(0, line.find(';'));
 
     // Troca os tabs por espaços
     replace(line.begin(), line.end(),'\t',' ');
@@ -110,15 +111,16 @@ int passage_zero(string program_name) {
             }
             // Se for do tipo 'if', veja o valor do equate 
             else if (clear_line.find("if") != string::npos) {
-                if(!get_correspondant_equ(clear_line,equ_map)){
+                if (!get_correspondant_equ(clear_line,equ_map)) {
                     // Quando equ = 0 jogue fora a próxima linha
                     getline (myfile,line);
+                    original_line_counter++;
                 }
             }
-            else {
+            else if (clear_line != "") {
                 // Para as outras instruções só copiar a linha formatada para o arquivo novo
                 pre_processed << pre_line_counter << ' ' << original_line_counter << ' ' << clear_line << endl;
-                pre_line_counter++;        
+                pre_line_counter++;     
                 lines_relations[pre_line_counter] = original_line_counter;
             }
             original_line_counter++;
@@ -136,8 +138,8 @@ int passage_zero(string program_name) {
 }
 
 // Carrega as instruções do assembly para memória(mapa)
-void load_instructions(map<string, Instruction> &map){
-    // São passados os tamanhos dos operandos, 
+void load_instructions(map<string, Instruction> &map) {
+    // São passados o número de operandos, 
     // os opcodes e o tamnho da instrução
     map["add"]    = Instruction(1, 1, 2);
     map["sub"]    = Instruction(1, 2, 2);
@@ -155,9 +157,28 @@ void load_instructions(map<string, Instruction> &map){
     map["stop"]   = Instruction(0, 14, 1);
 }
 
+// Carrega as diretivas de montagem para memória
+void load_directives(map<string, Directive> &map) {
+    // São passados o número de operandos e o tamanho da diretiva na memória
+    map["section"]  = Directive(1, 0);
+    map["space"]    = Directive(1, 0);
+    map["const"]    = Directive(1, 0);
+    map["public"]   = Directive(1, 0);
+    map["equ"]      = Directive(1, 0);
+    map["if"]       = Directive(1, 0);
+    map["extern"]   = Directive(1, 0);
+    map["begin"]    = Directive(1, 0);
+    map["end"]      = Directive(1, 0);
+}
+
+
 int main(int argc, char const *argv[]) {
     // Contém as instruções do assembly
     map<string, Instruction> instructions_map;
+
+    // Contém as diretivas de montagem
+    map<string, Directive> directives_map;
+
     if(argc != 2) {
         cout << "Não foi passado o argumento do nome do arquivo\n";
         cout << "Encerrando execução\n";
@@ -165,7 +186,8 @@ int main(int argc, char const *argv[]) {
     }
     else {
         passage_zero(argv[1]);
-        //load_instructions(instructions_map);        
+        //load_instructions(instructions_map);
+        //load_directives(directives_map);       
     }    
 
     return 0;

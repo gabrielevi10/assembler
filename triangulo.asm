@@ -1,4 +1,4 @@
-	TRIANGULO: EQU 1
+	TRIANGULO: EQU 0
 SECTION TEXT
 		INPUT		B 		;Comentario
 		INPUT		H		;Comentario2
