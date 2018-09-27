@@ -161,14 +161,14 @@ void load_instructions(map<string, Instruction> &map) {
 void load_directives(map<string, Directive> &map) {
     // São passados o número de operandos e o tamanho da diretiva na memória
     map["section"]  = Directive(1, 0);
-    map["space"]    = Directive(1, 0);
-    map["const"]    = Directive(1, 0);
-    map["public"]   = Directive(1, 0);
+    map["space"]    = Directive(1, 1);
+    map["const"]    = Directive(1, 1);
+    map["public"]   = Directive(0, 0);
     map["equ"]      = Directive(1, 0);
     map["if"]       = Directive(1, 0);
-    map["extern"]   = Directive(1, 0);
-    map["begin"]    = Directive(1, 0);
-    map["end"]      = Directive(1, 0);
+    map["extern"]   = Directive(0, 0);
+    map["begin"]    = Directive(0, 0);
+    map["end"]      = Directive(0, 0);
 }
 
 
