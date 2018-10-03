@@ -104,8 +104,7 @@ int passage_zero(string program_name) {
             if (clear_line.find("equ") != string::npos) {
                 add_to_equ_map(clear_line,equ_map);
                 
-                // Copia a linha formatada para o arquivo novo
-                pre_processed << pre_line_counter << ' ' << original_line_counter << ' ' << clear_line << endl;
+                // Copia a linha formatada para o arquivo novo                
                 pre_line_counter++;
                 lines_relations[pre_line_counter] = original_line_counter;
             }
@@ -119,7 +118,8 @@ int passage_zero(string program_name) {
             }
             else if (clear_line != "") {
                 // Para as outras instruções só copiar a linha formatada para o arquivo novo
-                pre_processed << pre_line_counter << ' ' << original_line_counter << ' ' << clear_line << endl;
+                //pre_processed << pre_line_counter << ' ' << original_line_counter << ' ' << clear_line << endl;
+                pre_processed << clear_line << endl;
                 pre_line_counter++;     
                 lines_relations[pre_line_counter] = original_line_counter;
             }
@@ -171,6 +171,12 @@ void load_directives(map<string, Directive> &map) {
     map["end"]      = Directive(0, 0);
 }
 
+void token_separator(string s) {
+    for(int i=0; i < s.length() ;i++){
+
+    }
+
+}
 
 int main(int argc, char const *argv[]) {
     // Contém as instruções do assembly
