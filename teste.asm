@@ -1,4 +1,3 @@
-SECTION TEXT
 ROT: INPUT N1
 COPY     N1,        N4    ;comentario qualquer
 ROT2:

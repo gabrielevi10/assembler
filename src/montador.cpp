@@ -16,6 +16,9 @@ map<string, Instruction> instructions_map;
 // Contém as diretivas de montagem
 map<string, Directive> directives_map;
 
+// Relação das linhas do fonte original com o pre processado
+map<int,int> lines_relations;
+
 // Split de string a partir de um caractere
 const vector<string> split(const string& s, const char& c) {    
 	string buff{""};
@@ -112,9 +115,7 @@ int passage_zero(string program_name) {
     ifstream myfile (program_name + ".asm");    
     ofstream pre_processed;
     // Map contendo os rótulos dos equs e seus respectivos valores
-    map<string, int> equ_map;
-    // Relação das linhas do fonte original com o pre processado
-    map<int,int> lines_relations;
+    map<string, int> equ_map;    
 
     if (myfile.is_open()) {
         // Abre o arquivo de pre-processamento
@@ -140,7 +141,7 @@ int passage_zero(string program_name) {
                 // Para as outras instruções só copiar a linha formatada para o arquivo novo
                 //pre_processed << pre_line_counter << ' ' << original_line_counter << ' ' << clear_line << endl;
                 lines_relations[pre_line_counter] = original_line_counter;
-                pre_processed << original_line_counter << ' ' << pre_line_counter << ' ' << clear_line << endl;
+                pre_processed << clear_line << endl;
                 pre_line_counter++;     
             }
             original_line_counter++;
@@ -191,17 +192,25 @@ void load_directives() {
     directives_map["end"]      = Directive(0, 0);
 }
 
-void token_separator(string input) {    
+// Separa uma string em vários tokens
+void token_separator(string input, int original_line) {
     string label, opcode;
     vector<string> operands;
+
+    label  = "";
+    opcode = "";
+
+    // Se possuir dois ':' existem dois rótulos(erro)
+    if(count(input.begin(), input.end(),':') == 2){
+        cout << "Erro, dois rótulos declarados na linha " << original_line;
+        cout << endl;
+        exit(0);
+    }
 
     // Pega o rótulo caso exista
     if(input.find(':') != -1) {        
         label = input.substr(0, input.find(':'));
         input = input.substr(input.find(':')+1, input.length());
-    }
-    else {
-        label = "";
     }
 
     // Pega o opcode
@@ -215,12 +224,15 @@ void token_separator(string input) {
 
         // Caso tenha mandado mais de dois argumentos avise o user o erro
         if(args.size() > 2) {
-            cout << "Erro muitos argumentos dados(" << args.size() << ")\n";
+            cout << "Erro muitos argumentos dados(" << args.size() << ")";
+            cout << " na linha " << original_line << endl;
         }
         // Add cada argumento ao vetor dedicado(operands)
         for(string s : args){
             s = remove_initial_spaces(s);
-            operands.push_back(s);
+            if(!s.empty()) {
+                operands.push_back(s);
+            }
         }
     }
     // Se não achar, só possui um
@@ -228,14 +240,52 @@ void token_separator(string input) {
         // Remove espaços iniciais e finais desnecessários
         input = remove_initial_spaces(input);
         input = remove_final_spaces(input);
-        operands.push_back(input);
+
+        if(!input.empty()) {
+            operands.push_back(input);
+        }
     }
 
-    cout << label  << endl;
-    cout << opcode << endl;
-    for(auto i : operands)
-        cout << i << endl;
+    // cout << label  << endl;
+    // cout << opcode << endl;
+    // cout << operands.size() << endl;
+    // for(auto i : operands)
+    //     cout << i << endl;
+}
 
+void passage_one(string file_name) {
+    int line_counter = 1;
+    string line;
+    bool section_text = false;
+    ifstream myfile (file_name + ".pre");
+
+    while (getline (myfile,line)) {
+        int original_line = lines_relations[line_counter];
+
+        // Indica que a section text foi declarada
+        if(line == "section text"){            
+            section_text = true;
+            line_counter++;
+            continue;
+        }
+        // Se a seção for section data ou bss antes da seção texto alertar erro
+        else if((line == "section data" || line == "section bss") and !section_text){
+            cout << "Seção " <<  line.substr(line.find(' ')+1,line.length());
+            cout << " decladarada antes da de texto na linha " << original_line << endl;
+            exit(0);
+        }
+        
+        token_separator(line, original_line);
+        line_counter++;
+    }
+
+    // Para o caso se seção texto faltante
+    if(!section_text) {
+        cout << "Seção de texto faltante";
+        exit(0);
+
+    }
+    myfile.close();
 }
 
 int main(int argc, char const *argv[]) {
@@ -246,9 +296,12 @@ int main(int argc, char const *argv[]) {
         return -1;
     }    
     passage_zero(argv[1]);
-    //load_instructions(instructions_map);
-    //load_directives(directives_map);       
-    // token_separator("rot: add parametro1, parametro1, parametro1");
+    load_instructions();
+    load_directives();       
+    //token_separator("a: rot: add par1, par2");    
+    passage_one(argv[1]);
 
+
+    //TODO: fazer os erros de token invalido (func que recebe um token)
     return 0;
 }
