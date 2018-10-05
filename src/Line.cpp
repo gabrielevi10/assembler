@@ -14,3 +14,12 @@ string Line::to_print(){
     return ret;
 }
 
+string Line::get_label(){
+    return this->label;
+}
+string Line::get_opcode(){
+    return this->opcode;    
+}
+vector<string> Line::get_operands(){
+    return this->operands;
+}

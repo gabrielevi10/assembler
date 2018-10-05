@@ -14,6 +14,11 @@ class Line {
         Line();
         // Debug apenas
         string to_print();
+
+        string get_label();
+        string get_opcode();
+        vector<string> get_operands();
+
     private:
         string label, opcode;
         vector<string> operands;

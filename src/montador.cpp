@@ -261,6 +261,47 @@ Line token_separator(string input, int original_line) {
     return l;
 }
 
+// Valida se um token é válido
+void validate_token(string token, int line_counter) {
+    char first = token[0];
+
+    if(isdigit(first)){
+        cout << "Erro léxico, token começando com número na linha ";
+        cout << line_counter << endl;
+        exit(0);
+    }
+    
+
+    for(char i : token){
+        // Se possuir um caractere que não seja alfanumerico nem underscore
+        if(!isalpha(i) && !isdigit(i) && i != '_' ){
+            // O token é inválido
+            cout << "Erro léxico, token " << token;
+            cout << " possui o caractere \'" << i;
+            cout << "\' inválido na linha " << line_counter << endl;
+            exit(0);
+        }
+    }
+
+}
+
+// Valida uma linha olhando seus tokens 
+// e se a quantidade de instruções bate 
+// com a exigida pela instrução
+void validate_instruction(Line instruction, int line_counter) {
+    // Valida rótulo
+    validate_token(instruction.get_label(),line_counter);        
+    // Valida operandos
+    for(string operand : instruction.get_operands()){
+        // Se possuir soma só avalie o token do operando em si
+        if(operand.find(" + ") != -1) {            
+            operand = operand.substr(0, operand.find(" + "));
+            cout << operand <<endl;
+        }
+        validate_token(operand,line_counter);
+    }
+}
+
 void passage_one(string file_name) {
     int line_counter = 1;
     string line;
@@ -277,22 +318,25 @@ void passage_one(string file_name) {
             continue;
         }
         // Se a seção for section data ou bss antes da seção texto alertar erro
-        else if((line == "section data" || line == "section bss") and !section_text){
+        else if(!section_text and (line == "section data" || line == "section bss")){
             cout << "Seção " <<  line.substr(line.find(' ')+1,line.length());
             cout << " decladarada antes da de texto na linha " << original_line << endl;
             exit(0);
         }
 
         if(line == "section data") {
+            line_counter++;
             continue;
         }
         else if(line == "section data") {
+            line_counter++;
             continue;
         }
         
-        //TODO: verificar validade dos tokens(func recebe Line)
+        // FIXME: procura primeiro nas tabelas de diretivas ou instruções antes de validar
         Line instruction = token_separator(line, original_line);
-        cout << instruction.to_print() << endl;
+        validate_instruction(instruction, line_counter);
+        
         line_counter++;
     }
 
