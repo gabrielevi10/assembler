@@ -1,0 +1,12 @@
+rotulo (rot) opcode (input) -> (n1)
+rotulo () opcode (copy) -> (n1)(n4)
+rotulo (rot2) opcode () -> 
+rotulo () opcode (copy) -> (n2)(n3)
+rotulo () opcode (copy) -> (n3)(n3 + 1)
+rotulo () opcode (output) -> (n3 + 1)
+rotulo () opcode (stop) -> 
+rotulo (n2) opcode (const) -> (-5)
+rotulo () opcode (section) -> (bss)
+rotulo (n1) opcode (space) -> 
+rotulo (n3) opcode (space) -> (2)
+rotulo (n4) opcode (space) -> 

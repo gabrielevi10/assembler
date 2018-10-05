@@ -7,6 +7,7 @@
 
 #include "Instruction.hpp"
 #include "Directive.hpp"
+#include "Line.hpp"
 
 using namespace std;
 
@@ -106,7 +107,7 @@ int get_correspondant_equ(string line, map<string, int> &map) {
 }
 
 // Passagem zero do montador
-int passage_zero(string program_name) {
+void passage_zero(string program_name) {
     // Conta as linhas originais
     int original_line_counter = 1;
     // Conta as linhas do arquivo pre-processado
@@ -147,14 +148,12 @@ int passage_zero(string program_name) {
             original_line_counter++;
         }
         myfile.close();
-        pre_processed.close();
-
-        return 0;
+        pre_processed.close();        
     }
 
     else {
         cout << "Arquivo \'" << program_name + ".asm\'" << " não existe em memória\n"; 
-        return -1;
+        exit(0);
     }
 }
 
@@ -192,8 +191,8 @@ void load_directives() {
     directives_map["end"]      = Directive(0, 0);
 }
 
-// Separa uma string em vários tokens
-void token_separator(string input, int original_line) {
+// Separa uma string em classe Line(contem label opcode e operandos)
+Line token_separator(string input, int original_line) {
     string label, opcode;
     vector<string> operands;
 
@@ -202,7 +201,8 @@ void token_separator(string input, int original_line) {
 
     // Se possuir dois ':' existem dois rótulos(erro)
     if(count(input.begin(), input.end(),':') == 2){
-        cout << "Erro, dois rótulos declarados na linha " << original_line;
+        cout << "Erro sintático: ";
+        cout << "dois rótulos declarados na linha " << original_line;
         cout << endl;
         exit(0);
     }
@@ -215,8 +215,18 @@ void token_separator(string input, int original_line) {
 
     // Pega o opcode
     input = remove_initial_spaces(input);
-    opcode = input.substr(0, input.find(' '));
-    input = input.substr(input.find(' ')+1,input.length());
+    if(input.find(' ') == -1) {
+        // Para o caso das diretivas, que não possuem argumentos
+        // Não existe espaço após a diretiva
+        opcode = input;
+        input = "";
+    }
+    else {
+        // Para o caso das instruções, que possuem argumentos
+        // Existe um espaço que separa o opcode deles
+        opcode = input.substr(0, input.find(' '));
+        input = input.substr(input.find(' ')+1,input.length());
+    }    
 
     // Se achar uma vírgula possui dois argumentos
     if(input.find(',') != -1) {
@@ -224,7 +234,8 @@ void token_separator(string input, int original_line) {
 
         // Caso tenha mandado mais de dois argumentos avise o user o erro
         if(args.size() > 2) {
-            cout << "Erro muitos argumentos dados(" << args.size() << ")";
+            cout << "Erro sintático: ";
+            cout << "muitos argumentos dados(" << args.size() << ")";
             cout << " na linha " << original_line << endl;
         }
         // Add cada argumento ao vetor dedicado(operands)
@@ -235,22 +246,19 @@ void token_separator(string input, int original_line) {
             }
         }
     }
-    // Se não achar, só possui um
+    // Se não achar virgula só possui um argumento
     else {
         // Remove espaços iniciais e finais desnecessários
         input = remove_initial_spaces(input);
         input = remove_final_spaces(input);
-
+        
         if(!input.empty()) {
             operands.push_back(input);
         }
     }
 
-    // cout << label  << endl;
-    // cout << opcode << endl;
-    // cout << operands.size() << endl;
-    // for(auto i : operands)
-    //     cout << i << endl;
+    Line l(label,opcode,operands);
+    return l;
 }
 
 void passage_one(string file_name) {
@@ -263,7 +271,7 @@ void passage_one(string file_name) {
         int original_line = lines_relations[line_counter];
 
         // Indica que a section text foi declarada
-        if(line == "section text"){            
+        if(line == "section text") {
             section_text = true;
             line_counter++;
             continue;
@@ -274,8 +282,17 @@ void passage_one(string file_name) {
             cout << " decladarada antes da de texto na linha " << original_line << endl;
             exit(0);
         }
+
+        if(line == "section data") {
+            continue;
+        }
+        else if(line == "section data") {
+            continue;
+        }
         
-        token_separator(line, original_line);
+        //TODO: verificar validade dos tokens(func recebe Line)
+        Line instruction = token_separator(line, original_line);
+        cout << instruction.to_print() << endl;
         line_counter++;
     }
 
@@ -301,7 +318,5 @@ int main(int argc, char const *argv[]) {
     //token_separator("a: rot: add par1, par2");    
     passage_one(argv[1]);
 
-
-    //TODO: fazer os erros de token invalido (func que recebe um token)
     return 0;
 }
