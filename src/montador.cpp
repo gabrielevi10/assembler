@@ -140,8 +140,8 @@ void passage_zero(string program_name) {
             }
             else if (clear_line != "") {
                 // Para as outras instruções só copiar a linha formatada para o arquivo novo
-                //pre_processed << pre_line_counter << ' ' << original_line_counter << ' ' << clear_line << endl;
                 lines_relations[pre_line_counter] = original_line_counter;
+                // pre_processed << original_line_counter << ' ' << pre_line_counter << ' ' << clear_line << endl;
                 pre_processed << clear_line << endl;
                 pre_line_counter++;     
             }
@@ -155,40 +155,6 @@ void passage_zero(string program_name) {
         cout << "Arquivo \'" << program_name + ".asm\'" << " não existe em memória\n"; 
         exit(0);
     }
-}
-
-// Carrega as instruções do assembly para memória(mapa)
-void load_instructions() {
-    // São passados o número de operandos, 
-    // os opcodes e o tamnho da instrução
-    instructions_map["add"]    = Instruction(1, 1, 2);
-    instructions_map["sub"]    = Instruction(1, 2, 2);
-    instructions_map["mult"]   = Instruction(1, 3, 2);
-    instructions_map["div"]    = Instruction(1, 4, 2);
-    instructions_map["jmp"]    = Instruction(1, 5, 2);
-    instructions_map["jmpn"]   = Instruction(1, 6, 2);
-    instructions_map["jmpp"]   = Instruction(1, 7, 2);
-    instructions_map["jmpz"]   = Instruction(1, 8, 2);
-    instructions_map["copy"]   = Instruction(2, 9, 3);
-    instructions_map["load"]   = Instruction(1, 10, 2);
-    instructions_map["store"]  = Instruction(1, 11, 2);
-    instructions_map["input"]  = Instruction(1, 12, 2);
-    instructions_map["output"] = Instruction(1, 13, 2);
-    instructions_map["stop"]   = Instruction(0, 14, 1);
-}
-
-// Carrega as diretivas de montagem para memória
-void load_directives() {
-    // São passados o número de operandos e o tamanho da diretiva na memória
-    directives_map["section"]  = Directive(1, 0);
-    directives_map["space"]    = Directive(1, 1);
-    directives_map["const"]    = Directive(1, 1);
-    directives_map["public"]   = Directive(0, 0);
-    directives_map["equ"]      = Directive(1, 0);
-    directives_map["if"]       = Directive(1, 0);
-    directives_map["extern"]   = Directive(0, 0);
-    directives_map["begin"]    = Directive(0, 0);
-    directives_map["end"]      = Directive(0, 0);
 }
 
 // Separa uma string em classe Line(contem label opcode e operandos)
@@ -289,26 +255,49 @@ void validate_token(string token, int line_counter) {
 // e se a quantidade de instruções bate 
 // com a exigida pela instrução
 void validate_instruction(Line instruction, int line_counter) {
-    // Valida rótulo
+    // Valida quantidade de operandos dados
+    int operands_given = instruction.get_operands().size();
+    int operands_expected = instructions_map[instruction.get_opcode()].getOperand();
+
+    if(operands_given != operands_expected) {
+        cout << "Erro sintático, dado(s) " << operands_given;
+        cout << " operandos e esperado(s) " << operands_expected;
+        cout << " na linha " << line_counter << endl;
+        exit(0);
+    }
+
+    // Valida o token do rótulo
     validate_token(instruction.get_label(),line_counter);        
-    // Valida operandos
+    // Valida o token dos operandos
     for(string operand : instruction.get_operands()){
         // Se possuir soma só avalie o token do operando em si
         if(operand.find(" + ") != -1) {            
-            operand = operand.substr(0, operand.find(" + "));
-            cout << operand <<endl;
+            operand = operand.substr(0, operand.find(" + "));            
         }
         validate_token(operand,line_counter);
-    }
+    }    
+}
+
+// Retorna true se for uma instrução
+bool is_a_instruction(string opcode) {
+    return(instructions_map.find(opcode) == instructions_map.end()) ? false : true;        
+}
+
+// Retorna true se for uma diretiva
+bool is_a_directive(string opcode) {
+    return(directives_map.find(opcode) == directives_map.end()) ? false : true;        
 }
 
 void passage_one(string file_name) {
+    //TODO: verificar se a instr/diret está na seção correta
+    //TODO: add variavel que conta tamanhos para colocar na TS
     int line_counter = 1;
     string line;
     bool section_text = false;
     ifstream myfile (file_name + ".pre");
 
     while (getline (myfile,line)) {
+        // Linha original relativa ao arquivo '.pre'
         int original_line = lines_relations[line_counter];
 
         // Indica que a section text foi declarada
@@ -328,14 +317,26 @@ void passage_one(string file_name) {
             line_counter++;
             continue;
         }
-        else if(line == "section data") {
+        
+        else if(line == "section bss") {
             line_counter++;
             continue;
         }
-        
-        // FIXME: procura primeiro nas tabelas de diretivas ou instruções antes de validar
+                
         Line instruction = token_separator(line, original_line);
-        validate_instruction(instruction, line_counter);
+
+        string opcode = instruction.get_opcode();
+        if( is_a_instruction( opcode ) ){            
+            validate_instruction(instruction, original_line);
+        }
+        else if( is_a_directive( opcode ) ) {
+            // TODO: validate_directive(instruction, line_counter);
+        }
+        else if ( !opcode.empty() ){
+            cout << "Erro sintático, o opcode \'" << opcode << "\' da linha " << line_counter;
+            cout << " não existe."  << endl;
+            exit(0);
+        }
         
         line_counter++;
     }
@@ -349,6 +350,40 @@ void passage_one(string file_name) {
     myfile.close();
 }
 
+// Carrega as instruções do assembly para memória(mapa)
+void load_instructions() {
+    // São passados o número de operandos, 
+    // os opcodes e o tamnho da instrução
+    instructions_map["add"]    = Instruction(1, 1, 2);
+    instructions_map["sub"]    = Instruction(1, 2, 2);
+    instructions_map["mult"]   = Instruction(1, 3, 2);
+    instructions_map["div"]    = Instruction(1, 4, 2);
+    instructions_map["jmp"]    = Instruction(1, 5, 2);
+    instructions_map["jmpn"]   = Instruction(1, 6, 2);
+    instructions_map["jmpp"]   = Instruction(1, 7, 2);
+    instructions_map["jmpz"]   = Instruction(1, 8, 2);
+    instructions_map["copy"]   = Instruction(2, 9, 3);
+    instructions_map["load"]   = Instruction(1, 10, 2);
+    instructions_map["store"]  = Instruction(1, 11, 2);
+    instructions_map["input"]  = Instruction(1, 12, 2);
+    instructions_map["output"] = Instruction(1, 13, 2);
+    instructions_map["stop"]   = Instruction(0, 14, 1);
+}
+
+// Carrega as diretivas de montagem para memória
+void load_directives() {
+    // São passados o número de operandos e o tamanho da diretiva na memória
+    directives_map["section"]  = Directive(1, 0);
+    directives_map["space"]    = Directive(1, 1);
+    directives_map["const"]    = Directive(1, 1);
+    directives_map["public"]   = Directive(0, 0);
+    directives_map["equ"]      = Directive(1, 0);
+    directives_map["if"]       = Directive(1, 0);
+    directives_map["extern"]   = Directive(0, 0);
+    directives_map["begin"]    = Directive(0, 0);
+    directives_map["end"]      = Directive(0, 0);
+}
+
 int main(int argc, char const *argv[]) {
     // Se não for passado o argumento não execute
     if(argc != 2) {
@@ -358,9 +393,9 @@ int main(int argc, char const *argv[]) {
     }    
     passage_zero(argv[1]);
     load_instructions();
-    load_directives();       
-    //token_separator("a: rot: add par1, par2");    
-    passage_one(argv[1]);
+    load_directives();
+    passage_one(argv[1]);    
+    
 
     return 0;
 }
