@@ -333,7 +333,8 @@ void passage_one(string file_name) {
             // TODO: validate_directive(instruction, line_counter);
         }
         else if ( !opcode.empty() ){
-            cout << "Erro sintático, o opcode \'" << opcode << "\' da linha " << line_counter;
+            cout << "Erro sintático, a instrução/diretiva \'";
+            cout << opcode << "\' da linha " << line_counter;
             cout << " não existe."  << endl;
             exit(0);
         }
