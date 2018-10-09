@@ -251,33 +251,6 @@ void validate_token(string token, int line_counter) {
 
 }
 
-// Valida uma linha olhando seus tokens 
-// e se a quantidade de instruções bate 
-// com a exigida pela instrução
-void validate_instruction(Line instruction, int line_counter) {
-    // Valida quantidade de operandos dados
-    int operands_given = instruction.get_operands().size();
-    int operands_expected = instructions_map[instruction.get_opcode()].getOperand();
-
-    if(operands_given != operands_expected) {
-        cout << "Erro sintático, dado(s) " << operands_given;
-        cout << " operandos e esperado(s) " << operands_expected;
-        cout << " na linha " << line_counter << endl;
-        exit(0);
-    }
-
-    // Valida o token do rótulo
-    validate_token(instruction.get_label(),line_counter);        
-    // Valida o token dos operandos
-    for(string operand : instruction.get_operands()){
-        // Se possuir soma só avalie o token do operando em si
-        if(operand.find(" + ") != -1) {            
-            operand = operand.substr(0, operand.find(" + "));            
-        }
-        validate_token(operand,line_counter);
-    }    
-}
-
 // Retorna true se for uma instrução
 bool is_a_instruction(string opcode) {
     return(instructions_map.find(opcode) == instructions_map.end()) ? false : true;        
@@ -286,6 +259,48 @@ bool is_a_instruction(string opcode) {
 // Retorna true se for uma diretiva
 bool is_a_directive(string opcode) {
     return(directives_map.find(opcode) == directives_map.end()) ? false : true;        
+}
+
+// Valida uma linha olhando seus tokens 
+// e se a quantidade de instruções bate 
+// com a exigida pela instrução
+void validate_instruction(Line instruction, int line_counter) {
+    // Valida quantidade de operandos dados
+    int operands_expected;
+    int operands_given = instruction.get_operands().size();
+    string opcode = instruction.get_opcode();
+
+    // Se for uma instrução buscar no mapa de instruções
+    if(is_a_instruction(opcode)) {        
+        operands_expected = instructions_map[instruction.get_opcode()].getOperand();                
+    }
+
+    else if(is_a_directive(opcode)) {
+        operands_expected = directives_map[instruction.get_opcode()].getOperands();        
+    }
+    
+    // Space pode receber 0 ou 1 operandos
+    if((opcode == "space" && operands_given != 0 && operands_given != 1) ||
+       (opcode != "space" && operands_given != operands_expected)) {
+
+        cout << "Erro sintático, dado(s) " << operands_given;
+        cout << " operandos e esperado(s) " << operands_expected;
+        cout << " na linha " << line_counter << endl;
+        exit(0);        
+    }
+
+    // Valida o token do rótulo
+    validate_token(instruction.get_label(),line_counter);        
+    // Valida o token dos operandos das instruções
+    if(is_a_instruction(opcode)) {
+        for(string operand : instruction.get_operands()){
+            // Se possuir soma só avalie o token do operando em si
+            if(operand.find(" + ") != -1) {            
+                operand = operand.substr(0, operand.find(" + "));            
+            }
+            validate_token(operand,line_counter);
+        }
+    }
 }
 
 void passage_one(string file_name) {
@@ -330,11 +345,11 @@ void passage_one(string file_name) {
             validate_instruction(instruction, original_line);
         }
         else if( is_a_directive( opcode ) ) {
-            // TODO: validate_directive(instruction, line_counter);
+            validate_instruction(instruction, original_line);
         }
         else if ( !opcode.empty() ){
             cout << "Erro sintático, a instrução/diretiva \'";
-            cout << opcode << "\' da linha " << line_counter;
+            cout << opcode << "\' da linha " << original_line;
             cout << " não existe."  << endl;
             exit(0);
         }
