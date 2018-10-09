@@ -264,7 +264,7 @@ bool is_a_directive(string opcode) {
 // Valida uma linha olhando seus tokens 
 // e se a quantidade de instruções bate 
 // com a exigida pela instrução
-void validate_instruction(Line instruction, int line_counter) {
+void validate_line(Line instruction, int line_counter) {
     // Valida quantidade de operandos dados
     int operands_expected;
     int operands_given = instruction.get_operands().size();
@@ -303,11 +303,11 @@ void validate_instruction(Line instruction, int line_counter) {
     }
 }
 
-void passage_one(string file_name) {
-    //TODO: verificar se a instr/diret está na seção correta
+void passage_one(string file_name) {    
     //TODO: add variavel que conta tamanhos para colocar na TS
     int line_counter = 1;
     string line;
+    string current_section;
     bool section_text = false;
     ifstream myfile (file_name + ".pre");
 
@@ -317,6 +317,7 @@ void passage_one(string file_name) {
 
         // Indica que a section text foi declarada
         if(line == "section text") {
+            current_section = "text";
             section_text = true;
             line_counter++;
             continue;
@@ -329,11 +330,13 @@ void passage_one(string file_name) {
         }
 
         if(line == "section data") {
+            current_section = "data";
             line_counter++;
             continue;
         }
         
         else if(line == "section bss") {
+            current_section = "bss";
             line_counter++;
             continue;
         }
@@ -341,12 +344,31 @@ void passage_one(string file_name) {
         Line instruction = token_separator(line, original_line);
 
         string opcode = instruction.get_opcode();
-        if( is_a_instruction( opcode ) ){            
-            validate_instruction(instruction, original_line);
+
+        if( is_a_instruction( opcode ) ) {
+            // Para instruções fora da seção devida
+            if(current_section != "text") {
+                cout << "Erro sintático, instrução " << opcode;
+                cout << " fora da seção devida." << endl;
+                exit(0);
+            }
+
+            // Valida instrução
+            validate_line(instruction, original_line);
         }
+
         else if( is_a_directive( opcode ) ) {
-            validate_instruction(instruction, original_line);
+            // Para as diretivas space e const fora de suas seções devidas
+            if(opcode == "space" && current_section != "bss" || 
+               opcode == "const" && current_section != "data") {                   
+                   cout << "Erro sintático, diretiva " << opcode;
+                   cout << " fora da seção devida." << endl;
+                   exit(0);
+            }
+            // Valida diretiva 
+            validate_line(instruction, original_line);
         }
+        // Erro dos comandos que não são nem diretivas nem instruções
         else if ( !opcode.empty() ){
             cout << "Erro sintático, a instrução/diretiva \'";
             cout << opcode << "\' da linha " << original_line;
