@@ -23,6 +23,11 @@ map<int,int> lines_relations;
 // Tabela de símbolos
 map<string,int> symbol_table;
 
+// Marcam o inicio das seções bss e data
+// usando o contador de tamanho de instruções
+int beginning_section_data;
+int beginning_section_bss;
+
 // Split de string a partir de um caractere
 const vector<string> split(const string& s, const char& c) {    
 	string buff{""};
@@ -342,12 +347,18 @@ void passage_one(string file_name) {
         }
 
         if(line == "section data") {
+            // Marca o inicio da seção
+            beginning_section_data = size_counter;
+            // Marca seção atual
             current_section = "data";
             line_counter++;
             continue;
         }
         
         else if(line == "section bss") {
+            // Marca o inicio da seção
+            beginning_section_bss = size_counter;
+            // Marca seção atual
             current_section = "bss";
             line_counter++;
             continue;
@@ -357,7 +368,14 @@ void passage_one(string file_name) {
 
         // Adiciona rótulo na tabela de símbolos(se existir)
         string this_label = instruction.get_label();
-        if(!this_label.empty()) { 
+        if( !this_label.empty() ) { 
+            // No caso de já conter o símbolo
+            if(symbol_table_contains(this_label)) {
+                // FIXME: isso e um erro semantico??
+                cout << "Erro semântico. Símbolo \'";
+                cout << this_label << "\' redeclarado";
+                cout << " na linha " << original_line << endl;
+            }
             symbol_table[this_label] = size_counter;
         }
 
@@ -457,6 +475,10 @@ int main(int argc, char const *argv[]) {
     load_instructions();
     load_directives();
     passage_one(argv[1]);
+
+    for(auto i : symbol_table) {
+        cout << i.first << '-' << i.second << endl;
+    }
 
     return 0;
 }
