@@ -20,6 +20,9 @@ map<string, Directive> directives_map;
 // Relação das linhas do fonte original com o pre processado
 map<int,int> lines_relations;
 
+// Tabela de símbolos
+map<string,int> symbol_table;
+
 // Split de string a partir de um caractere
 const vector<string> split(const string& s, const char& c) {    
 	string buff{""};
@@ -258,7 +261,11 @@ bool is_a_instruction(string opcode) {
 
 // Retorna true se for uma diretiva
 bool is_a_directive(string opcode) {
-    return(directives_map.find(opcode) == directives_map.end()) ? false : true;        
+    return(directives_map.find(opcode) == directives_map.end()) ? false : true;
+}
+
+bool symbol_table_contains(string label) {
+    return(symbol_table.find(label) == symbol_table.end()) ? false : true;
 }
 
 // Valida uma linha olhando seus tokens 
@@ -303,11 +310,16 @@ void validate_line(Line instruction, int line_counter) {
     }
 }
 
-void passage_one(string file_name) {    
-    //TODO: add variavel que conta tamanhos para colocar na TS
+void passage_one(string file_name) {
+    // Variavel que possui o tamanho das linas
+    int size_counter;
+    // Conta em qual linha do arquivo pre-processado está
     int line_counter = 1;
+    // Linha lida do arquivo pre-processado
     string line;
+    // Seção atual(text,bss,data)
     string current_section;
+    // Marca se existe seção text
     bool section_text = false;
     ifstream myfile (file_name + ".pre");
 
@@ -343,30 +355,42 @@ void passage_one(string file_name) {
                 
         Line instruction = token_separator(line, original_line);
 
-        string opcode = instruction.get_opcode();
+        // Adiciona rótulo na tabela de símbolos(se existir)
+        string this_label = instruction.get_label();
+        if(!this_label.empty()) { 
+            symbol_table[this_label] = size_counter;
+        }
 
+        string opcode = instruction.get_opcode();
         if( is_a_instruction( opcode ) ) {
             // Para instruções fora da seção devida
             if(current_section != "text") {
                 cout << "Erro sintático, instrução " << opcode;
-                cout << " fora da seção devida." << endl;
+                cout << " fora da seção devida";
+                cout << " na linha " << original_line << endl;
                 exit(0);
             }
 
             // Valida instrução
             validate_line(instruction, original_line);
+            // Incrementa o contador do tamanho das instruções
+            size_counter += instructions_map[opcode].getLenght();
         }
 
         else if( is_a_directive( opcode ) ) {
             // Para as diretivas space e const fora de suas seções devidas
             if(opcode == "space" && current_section != "bss" || 
-               opcode == "const" && current_section != "data") {                   
-                   cout << "Erro sintático, diretiva " << opcode;
-                   cout << " fora da seção devida." << endl;
-                   exit(0);
+                opcode == "const" && current_section != "data") {                   
+
+                cout << "Erro sintático, diretiva " << opcode;
+                cout << " fora da seção devida";
+                cout << " na linha " << original_line << endl;
+                exit(0);
             }
             // Valida diretiva 
             validate_line(instruction, original_line);
+            // Incrementa o contador do tamanho das instruções
+            size_counter += directives_map[opcode].getLenght();
         }
         // Erro dos comandos que não são nem diretivas nem instruções
         else if ( !opcode.empty() ){
@@ -432,8 +456,7 @@ int main(int argc, char const *argv[]) {
     passage_zero(argv[1]);
     load_instructions();
     load_directives();
-    passage_one(argv[1]);    
-    
+    passage_one(argv[1]);
 
     return 0;
 }

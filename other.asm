@@ -1,14 +1,17 @@
+SECTION TEXT
         INPUT N
         LOAD N
 FAT:    SUB ONE
-        JNPZ FIM
+        JMPZ FIM
         STORE AUX
         MULT N
         STORE N
         LOAD AUX
-        JNP FAT
+        JMP FAT
 FIM:    OUTPUT N
         STOP
+SECTION BSS
 AUX:    SPACE
 N:      SPACE
+SECTION DATA
 ONE:    CONST 1
