@@ -369,8 +369,7 @@ void passage_one(string file_name) {
         string this_label = instruction.get_label();
         if( !this_label.empty() ) { 
             // No caso de já conter o símbolo
-            if(symbol_table_contains(this_label)) {
-                // FIXME: isso e um erro semantico??
+            if(symbol_table_contains(this_label)) {                
                 cout << "Erro semântico. Símbolo \'";
                 cout << this_label << "\' redeclarado";
                 cout << " na linha " << original_line << endl;
@@ -395,6 +394,7 @@ void passage_one(string file_name) {
         }
 
         else if( is_a_directive( opcode ) ) {
+            //TODO: space com arg
             // Para as diretivas space e const fora de suas seções devidas
             if(opcode == "space" && current_section != "bss" || 
                 opcode == "const" && current_section != "data") {                   
