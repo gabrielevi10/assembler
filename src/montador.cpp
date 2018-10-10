@@ -332,40 +332,39 @@ void passage_one(string file_name) {
         // Linha original relativa ao arquivo '.pre'
         int original_line = lines_relations[line_counter];
 
-        // Indica que a section text foi declarada
-        if(line == "section text") {
-            current_section = "text";
-            section_text = true;
-            line_counter++;
-            continue;
-        }
-        // Se a seção for section data ou bss antes da seção texto alertar erro
-        else if(!section_text and (line == "section data" || line == "section bss")){
-            cout << "Seção " <<  line.substr(line.find(' ')+1,line.length());
-            cout << " decladarada antes da de texto na linha " << original_line << endl;
-            exit(0);
-        }
-
-        if(line == "section data") {
-            // Marca o inicio da seção
-            beginning_section_data = size_counter;
-            // Marca seção atual
-            current_section = "data";
-            line_counter++;
-            continue;
-        }
-        
-        else if(line == "section bss") {
-            // Marca o inicio da seção
-            beginning_section_bss = size_counter;
-            // Marca seção atual
-            current_section = "bss";
-            line_counter++;
-            continue;
-        }
-                
+        // Quebra a linha em vários tokens
         Line instruction = token_separator(line, original_line);
 
+        if(instruction.get_opcode() == "section") {
+            current_section = instruction.get_operands()[0];
+
+            if(current_section == "text") {
+                section_text = true;                  
+            }
+            // Se a seção for bss ou data e a seção de texto 
+            // ainda não tiver sido declarada declare erro
+            else if((current_section == "data" || 
+                current_section == "bss") && !section_text) {
+
+                cout << "Seção " <<  line.substr(line.find(' ')+1,line.length());
+                cout << " decladarada antes da de texto na linha " << original_line << endl;
+            }
+            else if(current_section == "data") {
+                // Marca o inicio da seção
+                beginning_section_data = size_counter;
+            }
+            else if(current_section == "bss") {
+                // Marca o inicio da seção
+                beginning_section_bss = size_counter;
+            }
+            else {
+                cout << "Erro sintático, seção \'" << current_section;
+                cout << "\' indefinida" << endl;
+            }
+
+            line_counter++;
+            continue;
+        }      
         // Adiciona rótulo na tabela de símbolos(se existir)
         string this_label = instruction.get_label();
         if( !this_label.empty() ) { 
