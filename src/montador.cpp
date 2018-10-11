@@ -190,13 +190,13 @@ Line token_separator(string input, int original_line) {
     // Pega o opcode
     input = remove_initial_spaces(input);
     if(input.find(' ') == -1) {
-        // Para o caso das diretivas, que não possuem argumentos
+        // Para o caso dos que não possuem argumentos
         // Não existe espaço após a diretiva
         opcode = input;
         input = "";
     }
     else {
-        // Para o caso das instruções, que possuem argumentos
+        // Para o caso das que possuem argumentos
         // Existe um espaço que separa o opcode deles
         opcode = input.substr(0, input.find(' '));
         input = input.substr(input.find(' ')+1,input.length());
@@ -302,7 +302,7 @@ void validate_line(Line instruction, int line_counter) {
     }
 
     // Valida o token do rótulo
-    validate_token(instruction.get_label(),line_counter);        
+    validate_token(instruction.get_label(),line_counter);
     // Valida o token dos operandos das instruções
     if(is_a_instruction(opcode)) {
         for(string operand : instruction.get_operands()){
@@ -393,8 +393,7 @@ void passage_one(string file_name) {
             size_counter += instructions_map[opcode].getLenght();
         }
 
-        else if( is_a_directive( opcode ) ) {
-            //TODO: space com arg
+        else if( is_a_directive( opcode ) ) {            
             // Para as diretivas space e const fora de suas seções devidas
             if(opcode == "space" && current_section != "bss" || 
                 opcode == "const" && current_section != "data") {                   
@@ -406,7 +405,13 @@ void passage_one(string file_name) {
             }
             // Valida diretiva 
             validate_line(instruction, original_line);
-            // Incrementa o contador do tamanho das instruções
+
+            // Para o caso de space com argumento
+            if(opcode == "space" && instruction.get_operands().size() == 1) {            
+                int argument = stoi(instruction.get_operands()[0]);
+                // Acrescenta n espaços de memoria
+                size_counter += (argument - 1);
+            }
             size_counter += directives_map[opcode].getLenght();
         }
         // Erro dos comandos que não são nem diretivas nem instruções
