@@ -5,6 +5,7 @@
 #include <string>
 #include <map>
 #include <cstdio>
+#include <stdlib.h>
 
 #include "Instruction.hpp"
 #include "Directive.hpp"
@@ -392,10 +393,8 @@ void passage_one(string file_name) {
                 this_label = splitted_label[1];
                 definition_table[this_label] = -1;
             }
-            else if (splitted_label[0] == "extern") {
-                is_extern = true;
-                this_label = splitted_label[1];
-            }
+            if (instruction.get_opcode() == "extern")
+                is_extern = true; 
             // No caso de já conter o símbolo
             if(symbol_table_contains(this_label)) {                
                 cout << "Erro semântico. Símbolo \'";
@@ -479,7 +478,8 @@ void passage_two(string file_name) {
     int opvalue;
     string line;
     ifstream my_file(file_name + ".pre");
-    fstream result_file(file_name + ".obj", fstream::out);
+    fstream auxiliar_file(file_name + ".aux", fstream::out);
+    ofstream result_file(file_name + ".obj");
     bool isnt_in_st;
     bool is_module = false;
     bool exists_end = false;
@@ -487,7 +487,8 @@ void passage_two(string file_name) {
     bool exists_extern = false;
     vector<string> splitted_op;
     vector<int> values_v;
-    map<string, string> use_table;
+    map<string, vector<int>> use_table;
+    vector<int> relative;
 
     while (getline(my_file, line)) {
         if (line == "section text" or line == "section bss" or line == "section data")
@@ -514,17 +515,23 @@ void passage_two(string file_name) {
         }
 
         if (is_a_instruction(actual_line.get_opcode())) {
+            // salva a posição anterior do contador de posições para que, se preciso,
+            // seja possível o acesso a um rotulo como operando no meio da expressão
+            // como por exemplo copy n1 n2, para ter a posição de n1
+            int back_pos = position_counter;
             position_counter += instructions_map[actual_line.get_opcode()].getLenght();
             if (!isnt_in_st and actual_line.get_operands().size() == instructions_map[actual_line.get_opcode()].getOperand()) {
+                int aux = position_counter - back_pos;
                 for (string operand : actual_line.get_operands()){
                     splitted_op = split(operand, ' ');
                     opvalue = symbol_table[splitted_op[0]];
-                    cout << splitted_op[0] << endl;
                     if (opvalue == -1) {
-                        cout << "tabela de uso" << endl;
-                        use_table[splitted_op[0]] = position_counter; 
+                        use_table[splitted_op[0]].push_back(position_counter - aux + 1);
                     }
+                    relative.push_back(position_counter - aux + 1);
+                    aux--;
                     if (splitted_op.size() > 1) {
+                        // verifica e faz a operação conforme passado para a instrução, como input n1 + 2
                         if (splitted_op[1] == "-") {
                             opvalue = opvalue - stoi(splitted_op[2]);
                         }
@@ -540,11 +547,11 @@ void passage_two(string file_name) {
                     }
                     values_v.push_back(opvalue);
                 }
-                result_file << instructions_map[actual_line.get_opcode()].getOpcode();
-                result_file << " ";
+                auxiliar_file << instructions_map[actual_line.get_opcode()].getOpcode();
+                auxiliar_file << " ";
                 if (instructions_map[actual_line.get_opcode()].getOperand() != 0)
                     for(int i : values_v)
-                        result_file << i << " ";
+                        auxiliar_file << i << " ";
                 values_v.clear();
             }
             else {
@@ -555,27 +562,23 @@ void passage_two(string file_name) {
         else if (is_a_directive(actual_line.get_opcode())) {
             if (actual_line.get_opcode() == "space") {
                 opvalue = 0;
-                result_file << "00" << " ";
+                auxiliar_file << "00" << " ";
                 if (actual_line.get_operands().size() > 0) {
                     for (string str : actual_line.get_operands())
                         opvalue += stoi(str);
                 }
                 for(int i = 1; i < opvalue; i++)
-                    result_file << "00" << " ";
+                    auxiliar_file << "00" << " ";
             }
             else if (actual_line.get_opcode() == "const") {
-                result_file << stoi(actual_line.get_operands()[0]) << " ";
+                auxiliar_file << stoi(actual_line.get_operands()[0]) << " ";
             }
             else if (actual_line.get_opcode() == "begin") {
                 is_module = true;
-                result_file << "TABLE USE" << endl << endl;
-                result_file << "TABLE DEFINITION" << endl;
-                for (auto i : definition_table) {
-                    result_file << i.first << " " << i.second << endl;
-                }
-                result_file << endl;
-                result_file << "RELATIVE" << endl << endl;
-                result_file << "CODE" << endl;
+                auxiliar_file << "TABLE USE\n" << endl;
+                auxiliar_file << "TABLE DEFINITION\n" << endl;
+                auxiliar_file << "RELATIVE\n" << endl;;
+                auxiliar_file << "CODE\n";
             }
             else if (actual_line.get_opcode() == "end") {
                 exists_end = true;
@@ -589,12 +592,23 @@ void passage_two(string file_name) {
         line_counter++;
     }
 
-    if (is_module) {
-        result_file.clear();
-        result_file.seekg(0, ios::beg);
-        result_file << "TABLE USE" << endl;
-        for (auto i : use_table) {
-            result_file << i.first << " " << i.second << endl;
+    auxiliar_file.close();
+    auxiliar_file.open(file_name + ".aux");
+    
+    while(getline(auxiliar_file, line)) {
+        result_file << line << endl;
+        if (line == "TABLE USE") {
+            for (auto i : use_table) {
+                for (int x : i.second) {
+                    result_file << i.first << " " << x << endl;
+                }
+            }
+        }
+        if (line == "RELATIVE") {
+            for (int i : relative) {
+                result_file << i << " ";
+            }
+            result_file << endl;
         }
     }
 
@@ -603,7 +617,10 @@ void passage_two(string file_name) {
         error = true;
     } 
 
+    auxiliar_file.close();
     result_file.close();
+
+    remove((file_name + ".aux").c_str());
 
     if (error) {
         remove((file_name + ".obj").c_str());
@@ -636,7 +653,7 @@ void load_directives() {
     directives_map["section"]  = Directive(1, 0);
     directives_map["space"]    = Directive(1, 1);
     directives_map["const"]    = Directive(1, 1);
-    directives_map["public"]   = Directive(1, 0);
+    directives_map["public"]   = Directive(0, 0);
     directives_map["equ"]      = Directive(1, 0);
     directives_map["if"]       = Directive(1, 0);
     directives_map["extern"]   = Directive(0, 0);

@@ -1,11 +1,12 @@
 MOD_A: BEGIN
 SECTION TEXT
+N8: EXTERN
 ROT: INPUT N1
-COPY     N1,        N4    ;comentario qualquer
+COPY     N1,        N8    ;comentario qualquer
 ROT2: 
-COPY    N2,    N3
+COPY    N4,    N8
 COPY N3,   N3   +     1
-OUTPUT N8 +    1
+OUTPUT N3 +    1
 STOP
 ;comentario qualuer
 SECTION DATA
