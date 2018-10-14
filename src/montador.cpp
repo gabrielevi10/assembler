@@ -389,13 +389,7 @@ void passage_one(string file_name) {
         // Adiciona rótulo na tabela de símbolos(se existir)
         string this_label = instruction.get_label();
         if( !this_label.empty() ) {
-            // verifica se o simbolo é público ou externo
-            splitted_label = split(this_label, ' ');
-            // se for público, vai pra tabela de definições
-            if (splitted_label[0] == "public") {
-                this_label = splitted_label[1];
-                definition_table[this_label] = -1;
-            }
+            // verifica se o simbolo é externo
             if (instruction.get_opcode() == "extern")
                 is_extern = true; 
             // No caso de já conter o símbolo
@@ -449,6 +443,11 @@ void passage_one(string file_name) {
                 // Acrescenta n espaços de memoria
                 size_counter += (argument - 1);
             }
+
+            if(opcode == "public") {
+                definition_table[instruction.get_operands()[0]] = -1; 
+            }
+
             size_counter += directives_map[opcode].getLenght();
         }
         // Erro dos comandos que não são nem diretivas nem instruções
@@ -607,6 +606,10 @@ void passage_two(string file_name) {
                 }
             }
         }
+        if (line == "TABLE DEFINITION") {
+            for (auto i : definition_table)
+                result_file << i.first << " " << i.second << endl;
+        }
         if (line == "RELATIVE") {
             for (int i : relative) {
                 result_file << i << " ";
@@ -656,7 +659,7 @@ void load_directives() {
     directives_map["section"]  = Directive(1, 0);
     directives_map["space"]    = Directive(1, 1);
     directives_map["const"]    = Directive(1, 1);
-    directives_map["public"]   = Directive(0, 0);
+    directives_map["public"]   = Directive(1, 0);
     directives_map["equ"]      = Directive(1, 0);
     directives_map["if"]       = Directive(1, 0);
     directives_map["extern"]   = Directive(0, 0);

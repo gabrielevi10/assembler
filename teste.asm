@@ -1,6 +1,7 @@
 MOD_A: BEGIN
 SECTION TEXT
 N8: EXTERN
+PUBLIC N9
 ROT: INPUT N1
 COPY     N1,        N8    ;comentario qualquer
 ROT2: 
@@ -15,4 +16,5 @@ SECTION BSS
 N1:  SPACE
 N3:  SPACE 2
 N4:  SPACE
+N9: SPACE 3
 END
