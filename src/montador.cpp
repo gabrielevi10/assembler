@@ -84,6 +84,9 @@ string format_line(string line) {
     // Retira os comentários
     line = line.substr(0, line.find(';'));
 
+    // Remove o carriage return(caso arquivo tenha sido gerado em Windows)
+    line.erase( remove(line.begin(), line.end(), '\r'), line.end() );
+
     // Troca os tabs por espaços
     replace(line.begin(), line.end(),'\t',' ');
 
