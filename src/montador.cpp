@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <cstdio>
 
 #include "Instruction.hpp"
 #include "Directive.hpp"
@@ -450,6 +451,12 @@ void passage_two(string file_name) {
     int original_line;
     string line;
     ifstream my_file(file_name + ".pre");
+    ofstream result_file(file_name + ".obj");
+    bool isnt_in_st;
+    bool is_module = false;
+    int opvalue;
+    vector<string> splitted_op;
+    vector<int> values_v;
 
     while (getline(my_file, line)) {
         if (line == "section text" or line == "section bss" or line == "section data")
@@ -457,17 +464,63 @@ void passage_two(string file_name) {
 
         original_line = lines_relations[line_counter];
 
-        Line actual_line = token_separator(line, original_line);
+        opvalue = 0;
 
+        Line actual_line = token_separator(line, original_line);
+        // flag que informa se o operando não está na tabela de simbolo
+        isnt_in_st = false;
+        // verifica se os operandos estão na tabela de simbolos
+        // para cada operando, se não for um número e não estiver na tabela, erro
         for (string operand : actual_line.get_operands()) {
-            if (!is_a_directive(actual_line.get_opcode()) and !symbol_table_contains(operand)) {
+            splitted_op = split(operand, ' ');
+            if (!isdigit(operand[0]) and operand[0] != '-' and !symbol_table_contains(splitted_op[0])) {
                 cout << "Erro sintático, o operando ";
                 cout << operand << " na linha " << actual_line.get_label();
-                cout << " não foi declarado." << endl;
+                cout << " não foi definido." << endl;
                 error = true;
-                cout << line;
+                isnt_in_st = true;
             }
         }
+
+        if (is_a_instruction(actual_line.get_opcode())) {
+            position_counter += instructions_map[actual_line.get_opcode()].getLenght();
+            if (!isnt_in_st and actual_line.get_operands().size() == instructions_map[actual_line.get_opcode()].getOperand()) {
+                for (string operand : actual_line.get_operands()){
+                    splitted_op = split(operand, ' ');
+                    opvalue = symbol_table[splitted_op[0]];
+                    if (splitted_op.size() > 1) {
+                        if (splitted_op[1] == "-") {
+                            opvalue = opvalue - stoi(splitted_op[2]);
+                        }
+                        else if (splitted_op[1] == "+") {
+                            opvalue = opvalue + stoi(splitted_op[2]);
+                        }
+                        else if (splitted_op[1] == "*") {
+                            opvalue = opvalue * stoi(splitted_op[2]);
+                        }
+                        else if (splitted_op[1] == "/") {
+                            opvalue = opvalue / stoi(splitted_op[2]);
+                        }
+                    }
+                    values_v.push_back(opvalue);
+                }
+                result_file << instructions_map[actual_line.get_opcode()].getOpcode();
+                result_file << " ";
+                if (instructions_map[actual_line.get_opcode()].getOperand() != 0)
+                    for(int i : values_v)
+                        result_file << i << " ";
+                values_v.clear();
+            }
+            else {
+                cout << "Erro sintático, operando inválido na linha" << actual_line.get_label() << endl;
+            }
+        }
+
+        line_counter++;
+    }
+
+    if (error) {
+        remove((file_name + ".obj").c_str());
     }
 
 }
