@@ -24,6 +24,9 @@ map<int,int> lines_relations;
 // Tabela de símbolos
 map<string,int> symbol_table;
 
+// Tabela de definições
+map<string, int> definition_table;
+
 // Marcam o inicio das seções bss e data
 // usando o contador de tamanho de instruções
 int beginning_section_data;
@@ -323,7 +326,7 @@ void validate_line(Line instruction, int line_counter) {
 
 void passage_one(string file_name) {
     // Variavel que possui o tamanho das linas
-    int size_counter;
+    int size_counter = 0;
     // Conta em qual linha do arquivo pre-processado está
     int line_counter = 1;
     // Linha lida do arquivo pre-processado
@@ -332,7 +335,10 @@ void passage_one(string file_name) {
     string current_section;
     // Marca se existe seção text
     bool section_text = false;
+    bool is_public;
+    bool is_extern;
     ifstream myfile (file_name + ".pre");
+    vector<string> splitted_label;
 
     while (getline (myfile,line)) {
         // Linha original relativa ao arquivo '.pre'
@@ -340,6 +346,9 @@ void passage_one(string file_name) {
 
         // Quebra a linha em vários tokens
         Line instruction = token_separator(line, original_line);
+
+        is_public = false;
+        is_extern = false;
 
         if(instruction.get_opcode() == "section") {
             current_section = instruction.get_operands()[0];
@@ -375,13 +384,28 @@ void passage_one(string file_name) {
         }      
         // Adiciona rótulo na tabela de símbolos(se existir)
         string this_label = instruction.get_label();
-        if( !this_label.empty() ) { 
+        if( !this_label.empty() ) {
+            // verifica se o simbolo é público ou externo
+            splitted_label = split(this_label, ' ');
+            // se for público, vai pra tabela de definições
+            if (splitted_label[0] == "public") {
+                this_label = splitted_label[1];
+                definition_table[this_label] = -1;
+            }
+            else if (splitted_label[0] == "extern") {
+                is_extern = true;
+                this_label = splitted_label[1];
+            }
             // No caso de já conter o símbolo
             if(symbol_table_contains(this_label)) {                
                 cout << "Erro semântico. Símbolo \'";
                 cout << this_label << "\' redeclarado";
                 cout << " na linha " << original_line << endl;
                 error = true;
+            }
+            // se for externo, vai pra TS com o valor -1, indicando que é externo 
+            else if (is_extern){
+                symbol_table[this_label] = -1;
             }
             else {
                 symbol_table[this_label] = size_counter;
@@ -443,20 +467,27 @@ void passage_one(string file_name) {
 
     }
     myfile.close();
+    for(auto i : definition_table) {
+        definition_table[i.first] = symbol_table[i.first];
+    }
 }
 
 void passage_two(string file_name) {
     int position_counter = 0;
     int line_counter = 1;
     int original_line;
+    int opvalue;
     string line;
     ifstream my_file(file_name + ".pre");
-    ofstream result_file(file_name + ".obj");
+    fstream result_file(file_name + ".obj", fstream::out);
     bool isnt_in_st;
     bool is_module = false;
-    int opvalue;
+    bool exists_end = false;
+    bool exists_public = false;
+    bool exists_extern = false;
     vector<string> splitted_op;
     vector<int> values_v;
+    map<string, string> use_table;
 
     while (getline(my_file, line)) {
         if (line == "section text" or line == "section bss" or line == "section data")
@@ -488,6 +519,11 @@ void passage_two(string file_name) {
                 for (string operand : actual_line.get_operands()){
                     splitted_op = split(operand, ' ');
                     opvalue = symbol_table[splitted_op[0]];
+                    cout << splitted_op[0] << endl;
+                    if (opvalue == -1) {
+                        cout << "tabela de uso" << endl;
+                        use_table[splitted_op[0]] = position_counter; 
+                    }
                     if (splitted_op.size() > 1) {
                         if (splitted_op[1] == "-") {
                             opvalue = opvalue - stoi(splitted_op[2]);
@@ -512,17 +548,66 @@ void passage_two(string file_name) {
                 values_v.clear();
             }
             else {
-                cout << "Erro sintático, operando inválido na linha" << actual_line.get_label() << endl;
+                cout << "Erro sintático, operando inválido na linha " << original_line << endl;
+                error = true;
             }
+        }
+        else if (is_a_directive(actual_line.get_opcode())) {
+            if (actual_line.get_opcode() == "space") {
+                opvalue = 0;
+                result_file << "00" << " ";
+                if (actual_line.get_operands().size() > 0) {
+                    for (string str : actual_line.get_operands())
+                        opvalue += stoi(str);
+                }
+                for(int i = 1; i < opvalue; i++)
+                    result_file << "00" << " ";
+            }
+            else if (actual_line.get_opcode() == "const") {
+                result_file << stoi(actual_line.get_operands()[0]) << " ";
+            }
+            else if (actual_line.get_opcode() == "begin") {
+                is_module = true;
+                result_file << "TABLE USE" << endl << endl;
+                result_file << "TABLE DEFINITION" << endl;
+                for (auto i : definition_table) {
+                    result_file << i.first << " " << i.second << endl;
+                }
+                result_file << endl;
+                result_file << "RELATIVE" << endl << endl;
+                result_file << "CODE" << endl;
+            }
+            else if (actual_line.get_opcode() == "end") {
+                exists_end = true;
+            }
+        }
+        else if (actual_line.get_opcode().size() > 0) {
+            cout << "Erro sintático, operação não identificada na linha " << original_line << endl;
+            error = true;
         }
 
         line_counter++;
     }
 
+    if (is_module) {
+        result_file.clear();
+        result_file.seekg(0, ios::beg);
+        result_file << "TABLE USE" << endl;
+        for (auto i : use_table) {
+            result_file << i.first << " " << i.second << endl;
+        }
+    }
+
+    if (is_module and !exists_end) {
+        cout << "Erro semântico, uso de begin sem o uso de end" << endl;
+        error = true;
+    } 
+
+    result_file.close();
+
     if (error) {
         remove((file_name + ".obj").c_str());
     }
-
 }
 
 // Carrega as instruções do assembly para memória(mapa)
@@ -551,7 +636,7 @@ void load_directives() {
     directives_map["section"]  = Directive(1, 0);
     directives_map["space"]    = Directive(1, 1);
     directives_map["const"]    = Directive(1, 1);
-    directives_map["public"]   = Directive(0, 0);
+    directives_map["public"]   = Directive(1, 0);
     directives_map["equ"]      = Directive(1, 0);
     directives_map["if"]       = Directive(1, 0);
     directives_map["extern"]   = Directive(0, 0);
@@ -572,7 +657,13 @@ int main(int argc, char const *argv[]) {
     passage_one(argv[1]);
     passage_two(argv[1]);
 
+    cout << "Tabela de símbolos:" << endl;
     for(auto i : symbol_table) {
+        cout << i.first << '-' << i.second << endl;
+    }
+
+    cout << "Tabela de definições:" << endl;
+    for(auto i : definition_table) {
         cout << i.first << '-' << i.second << endl;
     }
 
