@@ -28,6 +28,10 @@ map<string,int> symbol_table;
 int beginning_section_data;
 int beginning_section_bss;
 
+// Indica se houve algum erro detectado por alguma das passagens,
+// se sim, o montador não irá gerar arquivo objeto
+bool error = false;
+
 // Split de string a partir de um caractere
 const vector<string> split(const string& s, const char& c) {    
 	string buff{""};
@@ -178,7 +182,7 @@ Line token_separator(string input, int original_line) {
         cout << "Erro sintático: ";
         cout << "dois rótulos declarados na linha " << original_line;
         cout << endl;
-        exit(0);
+        error = true;
     }
 
     // Pega o rótulo caso exista
@@ -211,6 +215,7 @@ Line token_separator(string input, int original_line) {
             cout << "Erro sintático: ";
             cout << "muitos argumentos dados(" << args.size() << ")";
             cout << " na linha " << original_line << endl;
+            error = true;
         }
         // Add cada argumento ao vetor dedicado(operands)
         for(string s : args){
@@ -242,7 +247,7 @@ void validate_token(string token, int line_counter) {
     if(isdigit(first)){
         cout << "Erro léxico, token começando com número na linha ";
         cout << line_counter << endl;
-        exit(0);
+        error = true;
     }
     
 
@@ -253,7 +258,7 @@ void validate_token(string token, int line_counter) {
             cout << "Erro léxico, token " << token;
             cout << " possui o caractere \'" << i;
             cout << "\' inválido na linha " << line_counter << endl;
-            exit(0);
+            error = true;
         }
     }
 
@@ -298,7 +303,7 @@ void validate_line(Line instruction, int line_counter) {
         cout << "Erro sintático, dado(s) " << operands_given;
         cout << " operandos e esperado(s) " << operands_expected;
         cout << " na linha " << line_counter << endl;
-        exit(0);        
+        error = true;        
     }
 
     // Valida o token do rótulo
@@ -348,6 +353,7 @@ void passage_one(string file_name) {
 
                 cout << "Seção " <<  line.substr(line.find(' ')+1,line.length());
                 cout << " decladarada antes da de texto na linha " << original_line << endl;
+                error = true;
             }
             else if(current_section == "data") {
                 // Marca o inicio da seção
@@ -360,6 +366,7 @@ void passage_one(string file_name) {
             else {
                 cout << "Erro sintático, seção \'" << current_section;
                 cout << "\' indefinida" << endl;
+                error = true;
             }
 
             line_counter++;
@@ -373,8 +380,11 @@ void passage_one(string file_name) {
                 cout << "Erro semântico. Símbolo \'";
                 cout << this_label << "\' redeclarado";
                 cout << " na linha " << original_line << endl;
+                error = true;
             }
-            symbol_table[this_label] = size_counter;
+            else {
+                symbol_table[this_label] = size_counter;
+            }
         }
 
         string opcode = instruction.get_opcode();
@@ -384,7 +394,7 @@ void passage_one(string file_name) {
                 cout << "Erro sintático, instrução " << opcode;
                 cout << " fora da seção devida";
                 cout << " na linha " << original_line << endl;
-                exit(0);
+                error = true;
             }
 
             // Valida instrução
@@ -401,7 +411,7 @@ void passage_one(string file_name) {
                 cout << "Erro sintático, diretiva " << opcode;
                 cout << " fora da seção devida";
                 cout << " na linha " << original_line << endl;
-                exit(0);
+                error = true;
             }
             // Valida diretiva 
             validate_line(instruction, original_line);
@@ -419,7 +429,7 @@ void passage_one(string file_name) {
             cout << "Erro sintático, a instrução/diretiva \'";
             cout << opcode << "\' da linha " << original_line;
             cout << " não existe."  << endl;
-            exit(0);
+            error = true;
         }
         
         line_counter++;
@@ -428,10 +438,38 @@ void passage_one(string file_name) {
     // Para o caso se seção texto faltante
     if(!section_text) {
         cout << "Seção de texto faltante";
-        exit(0);
+        error = true;
 
     }
     myfile.close();
+}
+
+void passage_two(string file_name) {
+    int position_counter = 0;
+    int line_counter = 1;
+    int original_line;
+    string line;
+    ifstream my_file(file_name + ".pre");
+
+    while (getline(my_file, line)) {
+        if (line == "section text" or line == "section bss" or line == "section data")
+            continue;
+
+        original_line = lines_relations[line_counter];
+
+        Line actual_line = token_separator(line, original_line);
+
+        for (string operand : actual_line.get_operands()) {
+            if (!is_a_directive(actual_line.get_opcode()) and !symbol_table_contains(operand)) {
+                cout << "Erro sintático, o operando ";
+                cout << operand << " na linha " << actual_line.get_label();
+                cout << " não foi declarado." << endl;
+                error = true;
+                cout << line;
+            }
+        }
+    }
+
 }
 
 // Carrega as instruções do assembly para memória(mapa)
@@ -479,6 +517,7 @@ int main(int argc, char const *argv[]) {
     load_instructions();
     load_directives();
     passage_one(argv[1]);
+    passage_two(argv[1]);
 
     for(auto i : symbol_table) {
         cout << i.first << '-' << i.second << endl;
