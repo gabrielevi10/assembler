@@ -37,6 +37,8 @@ int beginning_section_bss;
 // se sim, o montador não irá gerar arquivo objeto
 bool error = false;
 
+vector<string> constants_vector;
+
 // Split de string a partir de um caractere
 const vector<string> split(const string& s, const char& c) {    
 	string buff{""};
@@ -444,8 +446,12 @@ void passage_one(string file_name) {
                 size_counter += (argument - 1);
             }
 
-            if(opcode == "public") {
+            if (opcode == "public") {
                 definition_table[instruction.get_operands()[0]] = -1; 
+            }
+
+            if (opcode == "const") {
+                constants_vector.push_back(instruction.get_operands()[0]);
             }
 
             size_counter += directives_map[opcode].getLenght();
@@ -491,6 +497,7 @@ void passage_two(string file_name) {
     vector<int> values_v;
     map<string, vector<int>> use_table;
     vector<int> relative;
+    int first_data_section = (beginning_section_bss > beginning_section_data) ? beginning_section_bss : beginning_section_data;
 
     while (getline(my_file, line)) {
         if (line == "section text" or line == "section bss" or line == "section data")
@@ -523,6 +530,19 @@ void passage_two(string file_name) {
             int back_pos = position_counter;
             position_counter += instructions_map[actual_line.get_opcode()].getLenght();
             if (!isnt_in_st and actual_line.get_operands().size() == instructions_map[actual_line.get_opcode()].getOperand()) {
+                if (actual_line.get_opcode().find("jmp") > 0) {  
+                    string jmp_op = split(actual_line.get_operands()[0], ' ')[0]; 
+                    if (symbol_table[actual_line.get_operands()[0]] > first_data_section) {
+                        error = true;
+                        cout << "Erro semântico, endereço de pulo fora da sessão TEXT na linha " << original_line << endl;
+                    }
+                }
+                if (actual_line.get_opcode() == "copy" and 
+                    find(constants_vector.begin(), constants_vector.end(), actual_line.get_operands()[1]) != constants_vector.end()){
+                        error = true;
+                        cout << "Erro semântico, modificação de um valor constante na linha " << original_line << endl;
+                }
+
                 int aux = position_counter - back_pos;
                 for (string operand : actual_line.get_operands()){
                     splitted_op = split(operand, ' ');
@@ -587,7 +607,7 @@ void passage_two(string file_name) {
             }
         }
         else if (actual_line.get_opcode().size() > 0) {
-            cout << "Erro sintático, operação não identificada na linha " << original_line << endl;
+            cout << "Erro léxico, operação não identificada na linha " << original_line << endl;
             error = true;
         }
 
