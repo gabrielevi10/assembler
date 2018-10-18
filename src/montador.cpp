@@ -4,6 +4,8 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <cstdio>
+#include <stdlib.h>
 
 #include "Instruction.hpp"
 #include "Directive.hpp"
@@ -23,10 +25,23 @@ map<int,int> lines_relations;
 // Tabela de símbolos
 map<string,int> symbol_table;
 
+// Tabela de definições
+map<string, int> definition_table;
+
 // Marcam o inicio das seções bss e data
 // usando o contador de tamanho de instruções
 int beginning_section_data;
 int beginning_section_bss;
+
+// Indica se houve algum erro detectado por alguma das passagens,
+// se sim, o montador não irá gerar arquivo objeto
+bool error = false;
+
+// Vector que guarda todas as constantes declaradas 
+vector<string> constants_vector;
+
+// Vector que guarda todas as constantes 0
+vector<string> zero_constants;
 
 // Split de string a partir de um caractere
 const vector<string> split(const string& s, const char& c) {    
@@ -74,6 +89,9 @@ string remove_unecessary_spaces(string in) {
 string format_line(string line) {
     // Retira os comentários
     line = line.substr(0, line.find(';'));
+
+    // Remove o carriage return(caso arquivo tenha sido gerado em Windows)
+    line.erase( remove(line.begin(), line.end(), '\r'), line.end() );
 
     // Troca os tabs por espaços
     replace(line.begin(), line.end(),'\t',' ');
@@ -178,7 +196,7 @@ Line token_separator(string input, int original_line) {
         cout << "Erro sintático: ";
         cout << "dois rótulos declarados na linha " << original_line;
         cout << endl;
-        exit(0);
+        error = true;
     }
 
     // Pega o rótulo caso exista
@@ -211,6 +229,7 @@ Line token_separator(string input, int original_line) {
             cout << "Erro sintático: ";
             cout << "muitos argumentos dados(" << args.size() << ")";
             cout << " na linha " << original_line << endl;
+            error = true;
         }
         // Add cada argumento ao vetor dedicado(operands)
         for(string s : args){
@@ -242,7 +261,7 @@ void validate_token(string token, int line_counter) {
     if(isdigit(first)){
         cout << "Erro léxico, token começando com número na linha ";
         cout << line_counter << endl;
-        exit(0);
+        error = true;
     }
     
 
@@ -253,7 +272,7 @@ void validate_token(string token, int line_counter) {
             cout << "Erro léxico, token " << token;
             cout << " possui o caractere \'" << i;
             cout << "\' inválido na linha " << line_counter << endl;
-            exit(0);
+            error = true;
         }
     }
 
@@ -298,7 +317,7 @@ void validate_line(Line instruction, int line_counter) {
         cout << "Erro sintático, dado(s) " << operands_given;
         cout << " operandos e esperado(s) " << operands_expected;
         cout << " na linha " << line_counter << endl;
-        exit(0);        
+        error = true;        
     }
 
     // Valida o token do rótulo
@@ -317,7 +336,7 @@ void validate_line(Line instruction, int line_counter) {
 
 void passage_one(string file_name) {
     // Variavel que possui o tamanho das linas
-    int size_counter;
+    int size_counter = 0;
     // Conta em qual linha do arquivo pre-processado está
     int line_counter = 1;
     // Linha lida do arquivo pre-processado
@@ -326,7 +345,10 @@ void passage_one(string file_name) {
     string current_section;
     // Marca se existe seção text
     bool section_text = false;
+    bool is_public;
+    bool is_extern;
     ifstream myfile (file_name + ".pre");
+    vector<string> splitted_label;
 
     while (getline (myfile,line)) {
         // Linha original relativa ao arquivo '.pre'
@@ -334,6 +356,9 @@ void passage_one(string file_name) {
 
         // Quebra a linha em vários tokens
         Line instruction = token_separator(line, original_line);
+
+        is_public = false;
+        is_extern = false;
 
         if(instruction.get_opcode() == "section") {
             current_section = instruction.get_operands()[0];
@@ -348,6 +373,7 @@ void passage_one(string file_name) {
 
                 cout << "Seção " <<  line.substr(line.find(' ')+1,line.length());
                 cout << " decladarada antes da de texto na linha " << original_line << endl;
+                error = true;
             }
             else if(current_section == "data") {
                 // Marca o inicio da seção
@@ -360,6 +386,7 @@ void passage_one(string file_name) {
             else {
                 cout << "Erro sintático, seção \'" << current_section;
                 cout << "\' indefinida" << endl;
+                error = true;
             }
 
             line_counter++;
@@ -367,14 +394,24 @@ void passage_one(string file_name) {
         }      
         // Adiciona rótulo na tabela de símbolos(se existir)
         string this_label = instruction.get_label();
-        if( !this_label.empty() ) { 
+        if( !this_label.empty() ) {
+            // verifica se o simbolo é externo
+            if (instruction.get_opcode() == "extern")
+                is_extern = true; 
             // No caso de já conter o símbolo
             if(symbol_table_contains(this_label)) {                
                 cout << "Erro semântico. Símbolo \'";
                 cout << this_label << "\' redeclarado";
                 cout << " na linha " << original_line << endl;
+                error = true;
             }
-            symbol_table[this_label] = size_counter;
+            // se for externo, vai pra TS com o valor -1, indicando que é externo 
+            else if (is_extern){
+                symbol_table[this_label] = -1;
+            }
+            else {
+                symbol_table[this_label] = size_counter;
+            }
         }
 
         string opcode = instruction.get_opcode();
@@ -384,7 +421,7 @@ void passage_one(string file_name) {
                 cout << "Erro sintático, instrução " << opcode;
                 cout << " fora da seção devida";
                 cout << " na linha " << original_line << endl;
-                exit(0);
+                error = true;
             }
 
             // Valida instrução
@@ -401,7 +438,7 @@ void passage_one(string file_name) {
                 cout << "Erro sintático, diretiva " << opcode;
                 cout << " fora da seção devida";
                 cout << " na linha " << original_line << endl;
-                exit(0);
+                error = true;
             }
             // Valida diretiva 
             validate_line(instruction, original_line);
@@ -412,14 +449,26 @@ void passage_one(string file_name) {
                 // Acrescenta n espaços de memoria
                 size_counter += (argument - 1);
             }
+
+            if (opcode == "public") {
+                definition_table[instruction.get_operands()[0]] = -1; 
+            }
+
+            if (opcode == "const") {
+                constants_vector.push_back(instruction.get_label());
+                if (instruction.get_operands()[0] == "0") {
+                    zero_constants.push_back(instruction.get_label());
+                }
+            }
+
             size_counter += directives_map[opcode].getLenght();
         }
         // Erro dos comandos que não são nem diretivas nem instruções
         else if ( !opcode.empty() ){
-            cout << "Erro sintático, a instrução/diretiva \'";
+            cout << "Erro léxico, a instrução/diretiva \'";
             cout << opcode << "\' da linha " << original_line;
             cout << " não existe."  << endl;
-            exit(0);
+            error = true;
         }
         
         line_counter++;
@@ -427,11 +476,200 @@ void passage_one(string file_name) {
 
     // Para o caso se seção texto faltante
     if(!section_text) {
-        cout << "Seção de texto faltante";
-        exit(0);
+        cout << "Seção de texto faltante" << endl;
+        error = true;
 
     }
     myfile.close();
+    for(auto i : definition_table) {
+        definition_table[i.first] = symbol_table[i.first];
+    }
+}
+
+void passage_two(string file_name) {
+    int position_counter = 0;
+    int line_counter = 1;
+    int original_line;
+    int opvalue;
+    string line;
+    ifstream my_file(file_name + ".pre");
+    fstream auxiliar_file(file_name + ".aux", fstream::out);
+    ofstream result_file(file_name + ".obj");
+    bool isnt_in_st;
+    bool is_module = false;
+    bool exists_end = false;
+    bool exists_public = false;
+    bool exists_extern = false;
+    vector<string> splitted_op;
+    vector<int> values_v;
+    map<string, vector<int>> use_table;
+    vector<int> relative;
+    int first_data_section = (beginning_section_bss > beginning_section_data) ? beginning_section_bss : beginning_section_data;
+
+    while (getline(my_file, line)) {
+        if (line == "section text" or line == "section bss" or line == "section data") {
+            line_counter++;
+            continue;
+        }
+
+        original_line = lines_relations[line_counter];
+
+        opvalue = 0;
+
+        Line actual_line = token_separator(line, original_line);
+        // flag que informa se o operando não está na tabela de simbolo
+        isnt_in_st = false;
+        // verifica se os operandos estão na tabela de simbolos
+        // para cada operando, se não for um número e não estiver na tabela, erro
+        for (string operand : actual_line.get_operands()) {
+            splitted_op = split(operand, ' ');
+            if (!isdigit(operand[0]) and operand[0] != '-' and !symbol_table_contains(splitted_op[0])) {
+                cout << "Erro sintático, o operando ";
+                cout << operand << " na linha " << actual_line.get_label();
+                cout << " não foi definido." << endl;
+                error = true;
+                isnt_in_st = true;
+            }
+        }
+
+        if (is_a_instruction(actual_line.get_opcode())) {
+            // salva a posição anterior do contador de posições para que, se preciso,
+            // seja possível o acesso a um rotulo como operando no meio da expressão
+            // como por exemplo copy n1 n2, para ter a posição de n1
+            int back_pos = position_counter;
+            position_counter += instructions_map[actual_line.get_opcode()].getLenght();
+            if (!isnt_in_st and actual_line.get_operands().size() == instructions_map[actual_line.get_opcode()].getOperand()) {
+
+                if (instructions_map[actual_line.get_opcode()].getOpcode() >= 5 and instructions_map[actual_line.get_opcode()].getOpcode() <= 8) {   
+                    if (symbol_table[actual_line.get_operands()[0]] > first_data_section) {
+                        error = true;
+                        cout << "Erro semântico, endereço de pulo fora da sessão TEXT na linha " << original_line << endl;
+                    }
+                }
+                else if (actual_line.get_opcode() == "copy") { 
+                    if (find(constants_vector.begin(), constants_vector.end(), actual_line.get_operands()[1]) != constants_vector.end()){
+                        error = true;
+                        cout << "Erro semântico, modificação de um valor constante na linha " << original_line << endl;
+                    }
+                }
+                else if (actual_line.get_opcode() == "div") {
+                    if (find(zero_constants.begin(), zero_constants.end(), actual_line.get_operands()[0]) != zero_constants.end()) {
+                        error = true;
+                        cout << "Erro semântico, divisão por zero na linha " << original_line << endl;
+                    }
+                    
+                }    
+
+                int aux = position_counter - back_pos;
+
+                for (string operand : actual_line.get_operands()){
+                    splitted_op = split(operand, ' ');
+                    opvalue = symbol_table[splitted_op[0]];
+                    if (opvalue == -1) {
+                        use_table[splitted_op[0]].push_back(position_counter - aux + 1);
+                    }
+                    relative.push_back(position_counter - aux + 1);
+                    aux--;
+                    if (splitted_op.size() > 1) {
+                        // verifica e faz a operação conforme passado para a instrução, como input n1 + 2
+                        if (splitted_op[1] == "-") {
+                            opvalue = opvalue - stoi(splitted_op[2]);
+                        }
+                        else if (splitted_op[1] == "+") {
+                            opvalue = opvalue + stoi(splitted_op[2]);
+                        }
+                        else if (splitted_op[1] == "*") {
+                            opvalue = opvalue * stoi(splitted_op[2]);
+                        }
+                        else if (splitted_op[1] == "/") {
+                            opvalue = opvalue / stoi(splitted_op[2]);
+                        }
+                    }
+                    values_v.push_back(opvalue);
+                }
+
+                auxiliar_file << instructions_map[actual_line.get_opcode()].getOpcode();
+                auxiliar_file << " ";
+                if (instructions_map[actual_line.get_opcode()].getOperand() != 0)
+                    for(int i : values_v)
+                        auxiliar_file << i << " ";
+                values_v.clear();
+            }
+            else {
+                cout << "Erro sintático, operando inválido na linha " << original_line << endl;
+                error = true;
+            }
+        }
+        else if (is_a_directive(actual_line.get_opcode())) {
+            if (actual_line.get_opcode() == "space") {
+                opvalue = 0;
+                auxiliar_file << "00" << " ";
+                if (actual_line.get_operands().size() > 0) {
+                    for (string str : actual_line.get_operands())
+                        opvalue += stoi(str);
+                }
+                for(int i = 1; i < opvalue; i++)
+                    auxiliar_file << "00" << " ";
+            }
+            else if (actual_line.get_opcode() == "const") {
+                auxiliar_file << stoi(actual_line.get_operands()[0]) << " ";
+            }
+            else if (actual_line.get_opcode() == "begin") {
+                is_module = true;
+                auxiliar_file << "TABLE USE\n" << endl;
+                auxiliar_file << "TABLE DEFINITION\n" << endl;
+                auxiliar_file << "RELATIVE\n" << endl;;
+                auxiliar_file << "CODE\n";
+            }
+            else if (actual_line.get_opcode() == "end") {
+                exists_end = true;
+            }
+        }
+        else if (actual_line.get_opcode().size() > 0) {
+            cout << "Erro léxico, operação não identificada na linha " << original_line << endl;
+            error = true;
+        }
+
+        line_counter++;
+    }
+
+    auxiliar_file.close();
+    auxiliar_file.open(file_name + ".aux");
+    
+    while(getline(auxiliar_file, line)) {
+        result_file << line << endl;
+        if (line == "TABLE USE") {
+            for (auto i : use_table) {
+                for (int x : i.second) {
+                    result_file << i.first << " " << x << endl;
+                }
+            }
+        }
+        if (line == "TABLE DEFINITION") {
+            for (auto i : definition_table)
+                result_file << i.first << " " << i.second << endl;
+        }
+        if (line == "RELATIVE") {
+            for (int i : relative) {
+                result_file << i << " ";
+            }
+            result_file << endl;
+        }
+    }
+
+    if (is_module and !exists_end) {
+        cout << "Erro semântico, uso de begin sem o uso de end" << endl;
+        error = true;
+    } 
+
+    auxiliar_file.close();
+    result_file.close();
+
+    remove((file_name + ".aux").c_str());
+
+    if (error) {
+        remove((file_name + ".obj").c_str());
+    }
 }
 
 // Carrega as instruções do assembly para memória(mapa)
@@ -460,7 +698,7 @@ void load_directives() {
     directives_map["section"]  = Directive(1, 0);
     directives_map["space"]    = Directive(1, 1);
     directives_map["const"]    = Directive(1, 1);
-    directives_map["public"]   = Directive(0, 0);
+    directives_map["public"]   = Directive(1, 0);
     directives_map["equ"]      = Directive(1, 0);
     directives_map["if"]       = Directive(1, 0);
     directives_map["extern"]   = Directive(0, 0);
@@ -479,8 +717,15 @@ int main(int argc, char const *argv[]) {
     load_instructions();
     load_directives();
     passage_one(argv[1]);
+    passage_two(argv[1]);
 
+    cout << "Tabela de símbolos:" << endl;
     for(auto i : symbol_table) {
+        cout << i.first << '-' << i.second << endl;
+    }
+
+    cout << "Tabela de definições:" << endl;
+    for(auto i : definition_table) {
         cout << i.first << '-' << i.second << endl;
     }
 
