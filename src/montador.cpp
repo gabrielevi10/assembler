@@ -500,8 +500,10 @@ void passage_two(string file_name) {
     int first_data_section = (beginning_section_bss > beginning_section_data) ? beginning_section_bss : beginning_section_data;
 
     while (getline(my_file, line)) {
-        if (line == "section text" or line == "section bss" or line == "section data")
+        if (line == "section text" or line == "section bss" or line == "section data") {
+            line_counter++;
             continue;
+        }
 
         original_line = lines_relations[line_counter];
 
@@ -530,8 +532,8 @@ void passage_two(string file_name) {
             int back_pos = position_counter;
             position_counter += instructions_map[actual_line.get_opcode()].getLenght();
             if (!isnt_in_st and actual_line.get_operands().size() == instructions_map[actual_line.get_opcode()].getOperand()) {
-                if (actual_line.get_opcode().find("jmp") > 0) {  
-                    string jmp_op = split(actual_line.get_operands()[0], ' ')[0]; 
+                // cout << actual_line.get_opcode().find("jmp") << endl;
+                if (instructions_map[actual_line.get_opcode()].getOpcode() >= 5 and instructions_map[actual_line.get_opcode()].getOpcode() <= 8) {   
                     if (symbol_table[actual_line.get_operands()[0]] > first_data_section) {
                         error = true;
                         cout << "Erro semântico, endereço de pulo fora da sessão TEXT na linha " << original_line << endl;
