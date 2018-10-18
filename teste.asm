@@ -5,7 +5,7 @@ PUBLIC N9
 ROT: INPUT N1
 COPY     N1,        N8    ;comentario qualquer
 ROT2: 
-COPY    N4,    N9
+CPY    N4,    N9
 JMP N4
 COPY N3,   N3   +     1
 OUTPUT N3 +    1
@@ -15,7 +15,9 @@ SECTION DATA
 N2:  CONST -5
 N9: CONST 3
 SECTION BSS
-N1:  SPACE
+COPY N1, N2
+N9: SPACE
+N1: N0: SPACE
 N3:  SPACE 2
 N4:  SPACE
 END

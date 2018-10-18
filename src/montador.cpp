@@ -451,14 +451,14 @@ void passage_one(string file_name) {
             }
 
             if (opcode == "const") {
-                constants_vector.push_back(instruction.get_operands()[0]);
+                constants_vector.push_back(instruction.get_label());
             }
 
             size_counter += directives_map[opcode].getLenght();
         }
         // Erro dos comandos que não são nem diretivas nem instruções
         else if ( !opcode.empty() ){
-            cout << "Erro sintático, a instrução/diretiva \'";
+            cout << "Erro léxico, a instrução/diretiva \'";
             cout << opcode << "\' da linha " << original_line;
             cout << " não existe."  << endl;
             error = true;
@@ -539,10 +539,12 @@ void passage_two(string file_name) {
                         cout << "Erro semântico, endereço de pulo fora da sessão TEXT na linha " << original_line << endl;
                     }
                 }
-                if (actual_line.get_opcode() == "copy" and 
-                    find(constants_vector.begin(), constants_vector.end(), actual_line.get_operands()[1]) != constants_vector.end()){
+                if (actual_line.get_opcode() == "copy") { 
+                    cout << actual_line.get_operands()[1] << endl;
+                    if (find(constants_vector.begin(), constants_vector.end(), actual_line.get_operands()[1]) != constants_vector.end()){
                         error = true;
                         cout << "Erro semântico, modificação de um valor constante na linha " << original_line << endl;
+                    }
                 }
 
                 int aux = position_counter - back_pos;
