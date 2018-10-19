@@ -97,16 +97,26 @@ void passage_zero(string program_name) {
                     original_line_counter++;
                 }
             }
+            // Troca as ocorrencias do equ nas seções const
+            else if (clear_line.find("const") != string::npos) {                
+                for(auto i : equ_map) {
+                    int occurrence = clear_line.find(i.first);
+                    if(occurrence != string::npos) {
+                        // Substituição devida(valor do equ)
+                        string subs = to_string(i.second);
+                        // Troca
+                        clear_line.replace(occurrence, i.first.length(), subs);                        
+                    }
+                }
+                pre_processed << clear_line << endl;
+            }
             else if (clear_line != "") {
                 // Para as outras instruções só copiar a linha formatada para o arquivo novo
                 lines_relations[pre_line_counter] = original_line_counter;
                 // pre_processed << original_line_counter << ' ' << pre_line_counter << ' ' << clear_line << endl;
                 pre_processed << clear_line << endl;
                 pre_line_counter++;     
-            }
-            else if (clear_line.find("const") != string::npos) {
-
-            }
+            }            
 
             original_line_counter++;
         }
@@ -462,7 +472,7 @@ void passage_two(string file_name) {
             splitted_op = split(operand, ' ');
             if (!isdigit(operand[0]) and operand[0] != '-' and !symbol_table_contains(splitted_op[0])) {
                 cout << "Erro sintático, o operando ";
-                cout << operand << " na linha " << actual_line.get_label();
+                cout << operand << " na linha " << original_line;
                 cout << " não foi definido." << endl;
                 error = true;
                 isnt_in_st = true;
