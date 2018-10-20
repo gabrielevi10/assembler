@@ -14,7 +14,7 @@
 
 using namespace std;
 
-#define debug true
+#define dbg false
 
 // Contém as instruções do assembly
 map<string, Instruction> instructions_map;
@@ -685,7 +685,7 @@ int main(int argc, char const *argv[]) {
     passage_one(argv[1]);
     passage_two(argv[1]);
 
-    #ifdef debug
+    #if dbg
         cout << "Tabela de símbolos:" << endl;
         for(auto i : symbol_table) {
             cout << i.first << '-' << i.second << endl;
