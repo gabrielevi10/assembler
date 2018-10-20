@@ -14,6 +14,8 @@
 
 using namespace std;
 
+#define dbg false
+
 // Contém as instruções do assembly
 map<string, Instruction> instructions_map;
 
@@ -28,6 +30,10 @@ map<string,int> symbol_table;
 
 // Tabela de definições
 map<string, int> definition_table;
+
+vector<string> extern_symbols;
+
+vector<string> data_symbols;
 
 // Marcam o inicio das seções bss e data
 // usando o contador de tamanho de instruções
@@ -352,9 +358,11 @@ void passage_one(string file_name) {
                 cout << " na linha " << original_line << endl;
                 error = true;
             }
-            // se for externo, vai pra TS com o valor -1, indicando que é externo 
+            // se for externo, vai pra TS com o valor 0, indicando que é externo 
             else if (is_extern){
-                symbol_table[this_label] = -1;
+                symbol_table[this_label] = 0;
+                extern_symbols.push_back(this_label);
+                data_symbols.push_back(this_label);
             }
             else {
                 symbol_table[this_label] = size_counter;
@@ -391,10 +399,13 @@ void passage_one(string file_name) {
             validate_line(instruction, original_line);
 
             // Para o caso de space com argumento
-            if(opcode == "space" && instruction.get_operands().size() == 1) {            
-                int argument = stoi(instruction.get_operands()[0]);
-                // Acrescenta n espaços de memoria
-                size_counter += (argument - 1);
+            if(opcode == "space") {
+                data_symbols.push_back(instruction.get_label());
+                if (instruction.get_operands().size() == 1) {            
+                    int argument = stoi(instruction.get_operands()[0]);
+                    // Acrescenta n espaços de memoria
+                    size_counter += (argument - 1);
+                }
             }
 
             if (opcode == "public") {
@@ -403,6 +414,7 @@ void passage_one(string file_name) {
 
             if (opcode == "const") {
                 constants_vector.push_back(instruction.get_label());
+                data_symbols.push_back(instruction.get_label());
                 if (instruction.get_operands()[0] == "0") {
                     zero_constants.push_back(instruction.get_label());
                 }
@@ -447,6 +459,7 @@ void passage_two(string file_name) {
     bool exists_end = false;
     bool exists_public = false;
     bool exists_extern = false;
+    bool is_jmp = false;
     vector<string> splitted_op;
     vector<int> values_v;
     map<string, vector<int>> use_table;
@@ -484,10 +497,12 @@ void passage_two(string file_name) {
             // seja possível o acesso a um rotulo como operando no meio da expressão
             // como por exemplo copy n1 n2, para ter a posição de n1
             int back_pos = position_counter;
+            is_jmp = false;
             position_counter += instructions_map[actual_line.get_opcode()].getLenght();
             if (!isnt_in_st and actual_line.get_operands().size() == instructions_map[actual_line.get_opcode()].getOperand()) {
 
-                if (instructions_map[actual_line.get_opcode()].getOpcode() >= 5 and instructions_map[actual_line.get_opcode()].getOpcode() <= 8) {   
+                if (instructions_map[actual_line.get_opcode()].getOpcode() >= 5 and instructions_map[actual_line.get_opcode()].getOpcode() <= 8) {
+                    is_jmp = true;   
                     if (symbol_table[actual_line.get_operands()[0]] > first_data_section) {
                         error = true;
                         cout << "Erro semântico, endereço de pulo fora da sessão TEXT na linha " << original_line << endl;
@@ -512,8 +527,12 @@ void passage_two(string file_name) {
                 for (string operand : actual_line.get_operands()){
                     splitted_op = split(operand, ' ');
                     opvalue = symbol_table[splitted_op[0]];
-                    if (opvalue == -1) {
+                    if (find(extern_symbols.begin(), extern_symbols.end(), splitted_op[0]) != extern_symbols.end()) {
                         use_table[splitted_op[0]].push_back(position_counter - aux + 1);
+                    }
+                    if (!is_jmp and !(find(data_symbols.begin(), data_symbols.end(), splitted_op[0]) != data_symbols.end())) {
+                        cout << "Erro semântico, uso indevido do label " << splitted_op[0] << " na linha " << original_line << endl;
+                        error = true;
                     }
                     relative.push_back(position_counter - aux + 1);
                     aux--;
@@ -666,15 +685,17 @@ int main(int argc, char const *argv[]) {
     passage_one(argv[1]);
     passage_two(argv[1]);
 
-    cout << "Tabela de símbolos:" << endl;
-    for(auto i : symbol_table) {
-        cout << i.first << '-' << i.second << endl;
-    }
+    #if dbg
+        cout << "Tabela de símbolos:" << endl;
+        for(auto i : symbol_table) {
+            cout << i.first << '-' << i.second << endl;
+        }
 
-    cout << "Tabela de definições:" << endl;
-    for(auto i : definition_table) {
-        cout << i.first << '-' << i.second << endl;
-    }
+        cout << "Tabela de definições:" << endl;
+        for(auto i : definition_table) {
+            cout << i.first << '-' << i.second << endl;
+        }
+    #endif
 
     return 0;
 }
