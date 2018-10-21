@@ -144,7 +144,7 @@ void generate_executable(int number_of_objs, string name) {
             executable_file << i << " ";
         }
 
-        correction_factor = code.size();
+        correction_factor = correction_factor + code.size();
         index++;
         relatives.clear();
     } 
