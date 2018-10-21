@@ -115,13 +115,16 @@ void passage_zero(string program_name) {
                     }
                 }
                 pre_processed << clear_line << endl;
+
+                lines_relations[pre_line_counter] = original_line_counter;                
+                pre_line_counter++;
             }
             else if (clear_line != "") {
                 // Para as outras instruções só copiar a linha formatada para o arquivo novo
                 lines_relations[pre_line_counter] = original_line_counter;
                 // pre_processed << original_line_counter << ' ' << pre_line_counter << ' ' << clear_line << endl;
                 pre_processed << clear_line << endl;
-                pre_line_counter++;     
+                pre_line_counter++;
             }            
 
             original_line_counter++;
