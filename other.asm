@@ -15,3 +15,4 @@ AUX:    SPACE 1
 N:      SPACE 1
 SECTION DATA
 ONE:    CONST 1
+N:      CONST 2
