@@ -460,8 +460,6 @@ void passage_two(string file_name) {
     bool isnt_in_st;
     bool is_module = false;
     bool exists_end = false;
-    bool exists_public = false;
-    bool exists_extern = false;
     bool is_jmp = false;
     vector<string> splitted_op;
     vector<int> values_v;
@@ -569,6 +567,7 @@ void passage_two(string file_name) {
                 error = true;
             }
         }
+        // Verifica se é uma diretiva, se sim, escreve no obj de acordo com a diretiva
         else if (is_a_directive(actual_line.get_opcode())) {
             if (actual_line.get_opcode() == "space") {
                 opvalue = 0;
@@ -603,6 +602,7 @@ void passage_two(string file_name) {
     }
 
     auxiliar_file.close();
+    // Retorna ao começo da file para leitura
     auxiliar_file.open(file_name + ".aux");
     
     while(getline(auxiliar_file, line)) {
@@ -636,6 +636,7 @@ void passage_two(string file_name) {
 
     remove((file_name + ".aux").c_str());
 
+    // Se foi detectado algum erro na montagem, o arquivo .obj é excluído
     if (error) {
         remove((file_name + ".obj").c_str());
     }

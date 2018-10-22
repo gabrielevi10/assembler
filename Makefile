@@ -1,5 +1,7 @@
-all: montador ligador
+all: create montador ligador
 
+create: 
+	mkdir -p obj/
 
 montador:  auxiliar.o Directive.o Instruction.o Line.o
 	g++ -std=c++11 -I include/ -c src/montador.cpp -o obj/montador.o

@@ -100,15 +100,16 @@ void make_global_def_table() {
 }
 
 // Gera o executavel, com o nome do primeiro .obj passado
-void generate_executable(int number_of_objs, string name) {
+void generate_executable(string name) {
     ofstream executable_file(name + ".e");
     string line;
     vector<int> code;
     vector<int> relatives;
     vector<int> aux_v;
     int correction_factor = 0;
-    int aux, index = 0;
+    int index = 0;
 
+    // Se for módulo, gera o executável diretamente
     if (!is_module) {
         for (int i : all_files_code[0]) {
             executable_file << i << " ";
@@ -118,6 +119,7 @@ void generate_executable(int number_of_objs, string name) {
 
     for (auto c : all_files_code) {
         code = c;
+        // Resolve as referencias por meio da tabela de uso e da tabela global de definicoes
         for (auto t : global_definition_table) {
             if(is_in_table_use(t.first, index)){
                 for (int i : use_tables[index][t.first]) {
@@ -126,6 +128,7 @@ void generate_executable(int number_of_objs, string name) {
                 }
             }
         }
+        // Atualiza a lista de relativos, retirando aqueles que já foram definidos na tabela global de definicoes
         if (!all_files_relatives[index].empty()) {
             for (int k : all_files_relatives[index]) {
                 if (!(find(aux_v.begin(), aux_v.end(), k) != aux_v.end())) {
@@ -136,6 +139,7 @@ void generate_executable(int number_of_objs, string name) {
         aux_v.clear();
         relatives.erase(unique(relatives.begin(), relatives.end()), relatives.end());
 
+        // Percorre a lista de relativos arrumando-os de acordo com o fator de correcao
         for (int s : relatives) {
             code[s] = code[s] + correction_factor;
         }
@@ -153,13 +157,20 @@ void generate_executable(int number_of_objs, string name) {
 }
 
 int main(int argc, const char *argv[]) {
+    
+    if (argc < 2) {
+        cout << "Não foi passado o nome do arquivo por argumento." << endl;
+        cout << "Encerrando a execução.";
+        return -1;
+    }
+    
     for (int i = 0; i < argc; i++) {
         fill_data_structures(argv[i]);
     }
 
     make_global_def_table();
-    
-    generate_executable(argc - 1, argv[1]);
+
+    generate_executable(argv[1]);
 
     #if dbg
         cout << "Tabelas de uso" << endl;
