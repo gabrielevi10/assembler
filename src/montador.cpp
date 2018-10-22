@@ -510,7 +510,13 @@ void passage_two(string file_name) {
                     }
                 }
                 else if (actual_line.get_opcode() == "copy") { 
-                    if (find(constants_vector.begin(), constants_vector.end(), actual_line.get_operands()[1]) != constants_vector.end()){
+                    if (find(constants_vector.begin(), constants_vector.end(), actual_line.get_operands()[1]) != constants_vector.end()) {
+                        error = true;
+                        cout << "Erro semântico, modificação de um valor constante na linha " << original_line << endl;
+                    }
+                }
+                else if (actual_line.get_opcode() == "store" or actual_line.get_opcode() == "input") {
+                    if (find(constants_vector.begin(), constants_vector.end(), actual_line.get_operands()[0]) != constants_vector.end()) {
                         error = true;
                         cout << "Erro semântico, modificação de um valor constante na linha " << original_line << endl;
                     }
