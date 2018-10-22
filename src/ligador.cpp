@@ -160,7 +160,7 @@ int main(int argc, const char *argv[]) {
     
     if (argc < 2) {
         cout << "Não foi passado o nome do arquivo por argumento." << endl;
-        cout << "Encerrando a execução.";
+        cout << "Encerrando a execução." << endl;
         return -1;
     }
     
